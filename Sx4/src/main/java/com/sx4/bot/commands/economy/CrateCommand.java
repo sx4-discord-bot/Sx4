@@ -15,6 +15,7 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.Crate;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.entities.economy.item.ItemStack;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -55,7 +56,7 @@ public class CrateCommand extends Sx4Command {
 			.filter(Predicate.not(Crate::isHidden))
 			.collect(Collectors.toList());
 
-		PagedResult<Crate> paged = new PagedResult<>(event.getBot(), crates)
+		MessagePagedResult<Crate> paged = new MessagePagedResult.Builder<>(event.getBot(), crates)
 			.setPerPage(12)
 			.setSelect()
 			.setCustomFunction(page -> {
@@ -68,7 +69,7 @@ public class CrateCommand extends Sx4Command {
 				page.forEach((crate, index) -> embed.addField(crate.getName(), String.format("Price: $%,d\nContents: %s", crate.getPrice(), crate.getContentString()), true));
 
 				return new MessageCreateBuilder().setEmbeds(embed.build());
-			});
+			}).build();
 
 		paged.execute(event);
 	}

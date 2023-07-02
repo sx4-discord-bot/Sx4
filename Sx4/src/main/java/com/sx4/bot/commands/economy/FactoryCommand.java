@@ -16,6 +16,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.economy.item.*;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -53,7 +54,7 @@ public class FactoryCommand extends Sx4Command {
 	public void shop(Sx4CommandEvent event) {
 		List<Factory> factories = event.getBot().getEconomyManager().getItems(Factory.class);
 
-		PagedResult<Factory> paged = new PagedResult<>(event.getBot(), factories)
+		MessagePagedResult<Factory> paged = new MessagePagedResult.Builder<>(event.getBot(), factories)
 			.setPerPage(15)
 			.setSelect()
 			.setCustomFunction(page -> {
@@ -69,7 +70,7 @@ public class FactoryCommand extends Sx4Command {
 				});
 
 				return new MessageCreateBuilder().setEmbeds(embed.build());
-			});
+			}).build();
 
 		paged.execute(event);
 	}

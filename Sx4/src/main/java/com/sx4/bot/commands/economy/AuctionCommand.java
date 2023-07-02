@@ -16,6 +16,7 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.auction.Auction;
 import com.sx4.bot.entities.economy.item.*;
 import com.sx4.bot.entities.utility.TimeFormatter;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -75,7 +76,7 @@ public class AuctionCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), items)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), items)
 				.setPerPage(6)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -107,7 +108,7 @@ public class AuctionCommand extends Sx4Command {
 					});
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});
@@ -214,7 +215,7 @@ public class AuctionCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), items)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), items)
 				.setPerPage(6)
 				.setIncreasedIndex(true)
 				.setTimeout(30)
@@ -247,7 +248,7 @@ public class AuctionCommand extends Sx4Command {
 					});
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.onTimeout(() -> event.reply("Timed out :stopwatch:"));
 
@@ -337,7 +338,7 @@ public class AuctionCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), items)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), items)
 				.setPerPage(6)
 				.setTimeout(30)
 				.setCustomFunction(page -> {
@@ -369,7 +370,7 @@ public class AuctionCommand extends Sx4Command {
 					});
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.onTimeout(() -> event.reply("Timed out :stopwatch:"));
 

@@ -17,7 +17,7 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.settings.HolderType;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -121,7 +121,7 @@ public class FakePermissionsCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), fakePermissions)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), fakePermissions)
 				.setAuthor("User & Roles", null, event.getGuild().getIconUrl())
 				.setTimeout(60)
 				.setDisplayFunction(data -> {
@@ -135,7 +135,7 @@ public class FakePermissionsCommand extends Sx4Command {
 						Role role = event.getGuild().getRoleById(id);
 						return role == null ? "Deleted Role (" + id + ")" : role.getAsMention();
 					}
-				});
+				}).build();
 
 			paged.onTimeout(() -> event.reply("Timed out :stopwatch:").queue());
 
@@ -242,7 +242,7 @@ public class FakePermissionsCommand extends Sx4Command {
 			.filter(data -> (data.getLong("permissions") & permissionsRaw) == permissionsRaw)
 			.collect(Collectors.toList());
 		
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), holders)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), holders)
 			.setAuthor("Roles & Users", null, event.getGuild().getIconUrl())
 			.setPerPage(15)
 			.setSelect()
@@ -258,7 +258,7 @@ public class FakePermissionsCommand extends Sx4Command {
 					Role role = event.getGuild().getRoleById(id);
 					return role == null ? "Deleted Role (" + id + ")" : role.getAsMention();
 				}
-			});
+			}).build();
 		
 		paged.execute(event);
 	}

@@ -7,6 +7,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.action.Action;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -57,7 +58,7 @@ public class OffencesCommand extends Sx4Command {
 
 			User user = member == null ? null : member.getUser();
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), data)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), data)
 				.setPerPage(6)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -84,7 +85,7 @@ public class OffencesCommand extends Sx4Command {
 					});
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});

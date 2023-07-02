@@ -58,9 +58,9 @@ import com.sx4.bot.formatter.output.function.FormatterParser;
 import com.sx4.bot.formatter.output.function.FormatterResponse;
 import com.sx4.bot.handlers.*;
 import com.sx4.bot.managers.*;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedHandler;
 import com.sx4.bot.paged.PagedManager;
-import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.*;
 import com.sx4.bot.utility.TimeUtility.OffsetTimeZone;
 import com.sx4.bot.waiter.WaiterHandler;
@@ -841,16 +841,17 @@ public class Sx4 {
 					.filter(command -> command.getCommandTrigger().equals(firstCommand.getCommandTrigger()))
 					.collect(Collectors.toList());
 
-				PagedResult<ICommand> paged = new PagedResult<>(this, commands)
+				MessagePagedResult<ICommand> paged = new MessagePagedResult.Builder<>(this, commands)
 					.setAuthor("Commands", null, message.getAuthor().getEffectiveAvatarUrl())
 					.setAutoSelect(true)
 					.setPerPage(15)
 					.setSelectablePredicate((content, command) -> command.getCommandTrigger().equals(content))
-					.setDisplayFunction(command -> command.getUsage());
+					.setDisplayFunction(command -> command.getUsage())
+					.build();
 
 				paged.onSelect(select -> channel.sendMessage(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
 
-				paged.execute(channel, message.getAuthor());
+				paged.execute(message);
 			}).setPrefixesFunction(message -> {
 				List<String> guildPrefixes = message.isFromGuild() ? this.mongo.getGuildById(message.getGuild().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList()) : Collections.emptyList();
 				List<String> userPrefixes = this.mongo.getUserById(message.getAuthor().getIdLong(), Projections.include("prefixes")).getList("prefixes", String.class, Collections.emptyList());

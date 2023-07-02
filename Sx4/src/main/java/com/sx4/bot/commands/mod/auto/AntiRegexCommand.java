@@ -24,15 +24,13 @@ import com.sx4.bot.entities.mod.auto.RegexType;
 import com.sx4.bot.entities.settings.HolderType;
 import com.sx4.bot.formatter.output.FormatterManager;
 import com.sx4.bot.formatter.output.function.FormatterVariable;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.IPermissionHolder;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
@@ -417,7 +415,7 @@ public class AntiRegexCommand extends Sx4Command {
 			return;
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), regexes)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), regexes)
 			.setPerPage(6)
 			.setCustomFunction(page -> {
 				MessageCreateBuilder builder = new MessageCreateBuilder();
@@ -430,7 +428,7 @@ public class AntiRegexCommand extends Sx4Command {
 				page.forEach((data, index) -> embed.addField(data.getObjectId("_id").toHexString(), "`" + data.getString("pattern") + "`", true));
 
 				return builder.setEmbeds(embed.build());
-			});
+			}).build();
 
 		paged.execute(event);
 	}
@@ -809,10 +807,11 @@ public class AntiRegexCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<TextChannel> channelPaged = new PagedResult<>(event.getBot(), channels)
+			MessagePagedResult<TextChannel> channelPaged = new MessagePagedResult.Builder<>(event.getBot(), channels)
 				.setAutoSelect(true)
 				.setAuthor("Channels", null, event.getGuild().getIconUrl())
-				.setDisplayFunction(TextChannel::getAsMention);
+				.setDisplayFunction(TextChannel::getAsMention)
+				.build();
 
 			channelPaged.onSelect(channelSelect -> {
 				TextChannel selectedChannel = channelSelect.getSelected();
@@ -827,9 +826,10 @@ public class AntiRegexCommand extends Sx4Command {
 					return;
 				}
 
-				PagedResult<String> typePaged = new PagedResult<>(event.getBot(), List.of("Groups", "Users/Roles"))
+				MessagePagedResult<String> typePaged = new MessagePagedResult.Builder<>(event.getBot(), List.of("Groups", "Users/Roles"))
 					.setAuthor("Type", null, event.getGuild().getIconUrl())
-					.setDisplayFunction(String::toString);
+					.setDisplayFunction(String::toString)
+					.build();
 
 				typePaged.onSelect(typeSelect -> {
 					String typeSelected = typeSelect.getSelected();
@@ -842,7 +842,7 @@ public class AntiRegexCommand extends Sx4Command {
 						return;
 					}
 
-					PagedResult<Document> whitelistPaged = new PagedResult<>(event.getBot(), whitelists)
+					MessagePagedResult.Builder<Document> builder = new MessagePagedResult.Builder<>(event.getBot(), whitelists)
 						.setAuthor(typeSelected, null, event.getGuild().getIconUrl())
 						.setDisplayFunction(data -> {
 							if (groups) {
@@ -861,8 +861,10 @@ public class AntiRegexCommand extends Sx4Command {
 						});
 
 					if (!groups) {
-						whitelistPaged.setSelect().setIndexed(false);
+						builder.setSelect().setIndexed(false);
 					}
+
+					MessagePagedResult<Document> whitelistPaged = builder.build();
 
 					whitelistPaged.onSelect(whitelistSelect -> {
 						List<String> strings = whitelistSelect.getSelected().getList("strings", String.class, Collections.emptyList());
@@ -871,11 +873,12 @@ public class AntiRegexCommand extends Sx4Command {
 							return;
 						}
 
-						PagedResult<String> stringPaged = new PagedResult<>(event.getBot(), strings)
+						MessagePagedResult<String> stringPaged = new MessagePagedResult.Builder<>(event.getBot(), strings)
 							.setAuthor("Strings", null, event.getGuild().getIconUrl())
 							.setDisplayFunction(MarkdownSanitizer::sanitize)
 							.setSelect()
-							.setIndexed(false);
+							.setIndexed(false)
+							.build();
 
 						stringPaged.execute(event);
 					});
@@ -962,7 +965,7 @@ public class AntiRegexCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), list)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), list)
 				.setPerPage(6)
 				.setCustomFunction(page -> {
 					MessageCreateBuilder builder = new MessageCreateBuilder();
@@ -979,7 +982,7 @@ public class AntiRegexCommand extends Sx4Command {
 					});
 
 					return builder.setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		}

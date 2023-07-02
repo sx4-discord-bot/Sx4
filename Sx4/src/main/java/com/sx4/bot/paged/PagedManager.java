@@ -11,8 +11,8 @@ public class PagedManager {
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 	
-	private final Map<Long, Map<Long, PagedResult<?>>> pagedResults;
-	private final Map<Long, PagedResult<?>> messages;
+	private final Map<Long, Map<Long, PagedResult<?, ?>>> pagedResults;
+	private final Map<Long, PagedResult<?, ?>> messages;
 
 	private final Map<Long, ScheduledFuture<?>> executors;
 
@@ -22,7 +22,7 @@ public class PagedManager {
 		this.executors = new HashMap<>();
 	}
 	
-	public void setTimeout(PagedResult<?> pagedResult) {
+	public void setTimeout(PagedResult<?, ?> pagedResult) {
 		if (pagedResult.getTimeout() == 0) {
 			return;
 		}
@@ -33,17 +33,17 @@ public class PagedManager {
 		}
 	}
 
-	public PagedResult<?> getPagedResult(long messageId) {
+	public PagedResult<?, ?> getPagedResult(long messageId) {
 		return this.messages.get(messageId);
 	}
 
-	public PagedResult<?> getPagedResult(long channelId, long ownerId) {
-		Map<Long, PagedResult<?>> users = this.pagedResults.get(channelId);
+	public PagedResult<?, ?> getPagedResult(long channelId, long ownerId) {
+		Map<Long, PagedResult<?, ?>> users = this.pagedResults.get(channelId);
 		return users == null ? null : users.get(ownerId);
 	}
 
-	public void createPagedResult(PagedResult<?> pagedResult) {
-		Map<Long, PagedResult<?>> users = this.pagedResults.get(pagedResult.getChannelId());
+	public void createPagedResult(PagedResult<?, ?> pagedResult) {
+		Map<Long, PagedResult<?, ?>> users = this.pagedResults.get(pagedResult.getChannelId());
 		if (users == null) {
 			users = new HashMap<>();
 			users.put(pagedResult.getOwnerId(), pagedResult);
@@ -56,8 +56,8 @@ public class PagedManager {
 		this.messages.put(pagedResult.getMessageId(), pagedResult);
 	}
 
-	public void deletePagedResult(PagedResult<?> pagedResult) {
-		Map<Long, PagedResult<?>> users = this.pagedResults.get(pagedResult.getChannelId());
+	public void deletePagedResult(PagedResult<?, ?> pagedResult) {
+		Map<Long, PagedResult<?, ?>> users = this.pagedResults.get(pagedResult.getChannelId());
 		if (users != null) {
 			users.remove(pagedResult.getOwnerId());
 		}

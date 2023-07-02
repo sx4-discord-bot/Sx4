@@ -19,7 +19,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -185,7 +185,7 @@ public class PremiumCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Map.Entry<String, Integer>> paged = new PagedResult<>(event.getBot(), users)
+			MessagePagedResult<Map.Entry<String, Integer>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setPerPage(10)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -198,7 +198,7 @@ public class PremiumCommand extends Sx4Command {
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,.2f\n", index + 1, entry.getKey(), entry.getValue() / 100D)));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});

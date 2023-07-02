@@ -38,18 +38,19 @@ public abstract class CustomInteractionId {
 
 	public abstract String getId();
 
-	public static abstract class Builder<Type extends CustomInteractionId> {
+	@SuppressWarnings({"unchecked"})
+	public static abstract class Builder<Type extends CustomInteractionId, Builder extends CustomInteractionId.Builder<Type, Builder>> {
 
 		protected int type;
 		protected String[] arguments;
 
-		public CustomInteractionId.Builder<Type> setType(int type) {
+		public Builder setType(int type) {
 			this.type = type;
 
-			return this;
+			return (Builder) this;
 		}
 
-		public CustomInteractionId.Builder<Type> setArguments(Object... arguments) {
+		public Builder setArguments(Object... arguments) {
 			String[] newArguments = new String[arguments.length];
 			for (int i = 0; i < arguments.length; i++) {
 				newArguments[i] = arguments[i].toString();
@@ -57,7 +58,7 @@ public abstract class CustomInteractionId {
 
 			this.arguments = newArguments;
 
-			return this;
+			return (Builder) this;
 		}
 
 		public abstract Type build();

@@ -19,7 +19,7 @@ import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.formatter.output.FormatterManager;
 import com.sx4.bot.formatter.output.function.FormatterVariable;
 import com.sx4.bot.managers.StarboardManager;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -240,7 +240,7 @@ public class StarboardCommand extends Sx4Command {
 
 		List<Document> starboards = event.getMongo().getStarboards(Filters.and(Filters.eq("guildId", guild.getIdLong()), Filters.ne("count", 0)), Projections.include("count", "channelId", "originalMessageId")).sort(Sorts.descending("count")).into(new ArrayList<>());
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), starboards)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), starboards)
 			.setIncreasedIndex(true)
 			.setAuthor("Top Starboards", null, guild.getIconUrl())
 			.setDisplayFunction(data -> {
@@ -255,7 +255,7 @@ public class StarboardCommand extends Sx4Command {
 					count,
 					count == 1 ? "" : "s"
 				);
-			});
+			}).build();
 
 		paged.execute(event);
 	}
@@ -396,12 +396,13 @@ public class StarboardCommand extends Sx4Command {
 			List<Document> messages = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("starboard.messages")).getEmbedded(List.of("starboard", "messages"), new ArrayList<>(StarboardManager.DEFAULT_CONFIGURATION));
 			messages.sort(Comparator.comparingInt(d -> d.getInteger("stars")));
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), messages)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), messages)
 				.setAuthor("Starboard Messages", null, event.getSelfUser().getEffectiveAvatarUrl())
 				.setIndexed(false)
 				.setPerPage(10)
 				.setSelect()
-				.setDisplayFunction(data -> "Star #" + data.getInteger("stars") + ": `" + data.getEmbedded(List.of("message", "content"), String.class) + "`");
+				.setDisplayFunction(data -> "Star #" + data.getInteger("stars") + ": `" + data.getEmbedded(List.of("message", "content"), String.class) + "`")
+				.build();
 
 			paged.execute(event);
 		}

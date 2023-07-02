@@ -19,7 +19,7 @@ import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.events.mod.TemporaryBanEvent;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.SearchUtility;
@@ -149,7 +149,7 @@ public class TemporaryBanCommand extends Sx4Command {
 
 		bans.sort(Comparator.comparingLong(d -> d.getLong("unbanAt")));
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), bans)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), bans)
 			.setAuthor("Muted Users", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
 			.setSelect()
@@ -157,7 +157,7 @@ public class TemporaryBanCommand extends Sx4Command {
 				User user = event.getShardManager().getUserById(data.getLong("userId"));
 
 				return (user == null ? "Anonymous#0000" : user.getAsTag()) + " - " + TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("unbanAt") - Clock.systemUTC().instant().getEpochSecond());
-			});
+			}).build();
 
 		paged.execute(event);
 	}

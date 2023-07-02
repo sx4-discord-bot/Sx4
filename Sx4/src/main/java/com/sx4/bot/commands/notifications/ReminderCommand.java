@@ -13,7 +13,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.ReminderArgument;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -96,11 +96,12 @@ public class ReminderCommand extends Sx4Command {
 
 			long now = Clock.systemUTC().instant().getEpochSecond();
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), reminders)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), reminders)
 				.setAuthor("Reminders", null, event.getAuthor().getEffectiveAvatarUrl())
 				.setPerPage(10)
 				.setIndexed(true)
-				.setDisplayFunction(data -> StringUtility.limit(data.getString("reminder"), 150) + " in `" + TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("remindAt") - now) + "`");
+				.setDisplayFunction(data -> StringUtility.limit(data.getString("reminder"), 150) + " in `" + TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("remindAt") - now) + "`")
+				.build();
 
 			paged.onSelect(select -> {
 				ObjectId selected = select.getSelected().getObjectId("_id");
@@ -157,10 +158,11 @@ public class ReminderCommand extends Sx4Command {
 
 		long timeNow = Clock.systemUTC().instant().getEpochSecond();
 		
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), reminders)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), reminders)
 			.setIndexed(false)
 			.setAuthor(event.getAuthor().getName() + "'s Reminders", null, event.getAuthor().getEffectiveAvatarUrl())
-			.setDisplayFunction(data -> data.getObjectId("_id").toHexString() + " - `" + TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("remindAt") - timeNow) + "`");
+			.setDisplayFunction(data -> data.getObjectId("_id").toHexString() + " - `" + TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("remindAt") - timeNow) + "`")
+			.build();
 		
 		paged.execute(event);
 	}

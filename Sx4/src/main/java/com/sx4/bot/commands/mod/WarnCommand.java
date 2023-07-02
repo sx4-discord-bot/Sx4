@@ -18,7 +18,7 @@ import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.mod.action.ModAction;
 import com.sx4.bot.entities.mod.action.TimeAction;
 import com.sx4.bot.entities.mod.action.Warn;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.NumberUtility;
@@ -171,7 +171,7 @@ public class WarnCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), users)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setAuthor("Warned Users", null, event.getGuild().getIconUrl())
 				.setIndexed(false)
 				.setSelect()
@@ -180,7 +180,7 @@ public class WarnCommand extends Sx4Command {
 					User user = event.getShardManager().getUserById(userId);
 
 					return "`" + (user == null ? "Anonymous#0000 (" + userId + ")" : MarkdownSanitizer.escape(user.getAsTag())) + "` - Warning **#" + data.getInteger("warnings") + "**";
-				});
+				}).build();
 
 			paged.execute(event);
 		});
@@ -340,11 +340,12 @@ public class WarnCommand extends Sx4Command {
 			List<Document> config = event.getMongo().getGuildById(event.getGuild().getIdLong(), Projections.include("warn.config")).getEmbedded(List.of("warn", "config"), new ArrayList<>(Warn.DEFAULT_CONFIG));
 			config.sort(Comparator.comparingInt(a -> a.getInteger("number")));
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), config)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), config)
 				.setAuthor("Warn Configuration", null, event.getGuild().getIconUrl())
 				.setSelect()
 				.setIndexed(false)
-				.setDisplayFunction(d -> "Warning #" + d.getInteger("number") + ": " + Action.fromData(d.get("action", Document.class)));
+				.setDisplayFunction(d -> "Warning #" + d.getInteger("number") + ": " + Action.fromData(d.get("action", Document.class)))
+				.build();
 
 			paged.execute(event);
 		}

@@ -25,6 +25,7 @@ import com.sx4.bot.entities.economy.item.Pickaxe;
 import com.sx4.bot.entities.economy.upgrade.Upgrade;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -66,7 +67,7 @@ public class PickaxeCommand extends Sx4Command {
 	public void shop(Sx4CommandEvent event) {
 		List<Pickaxe> pickaxes = event.getBot().getEconomyManager().getItems(Pickaxe.class);
 
-		PagedResult<Pickaxe> paged = new PagedResult<>(event.getBot(), pickaxes)
+		MessagePagedResult<Pickaxe> paged = new MessagePagedResult.Builder<>(event.getBot(), pickaxes)
 			.setPerPage(12)
 			.setSelect()
 			.setCustomFunction(page -> {
@@ -83,7 +84,7 @@ public class PickaxeCommand extends Sx4Command {
 				});
 
 				return new MessageCreateBuilder().setEmbeds(embed.build());
-			});
+			}).build();
 
 		paged.execute(event);
 	}
@@ -358,7 +359,7 @@ public class PickaxeCommand extends Sx4Command {
 	public void upgrades(Sx4CommandEvent event) {
 		EnumSet<Upgrade> upgrades = Upgrade.getUpgrades(ItemType.PICKAXE);
 
-		PagedResult<Upgrade> paged = new PagedResult<>(event.getBot(), Arrays.asList(upgrades.toArray(Upgrade[]::new)))
+		MessagePagedResult<Upgrade> paged = new MessagePagedResult.Builder<>(event.getBot(), Arrays.asList(upgrades.toArray(Upgrade[]::new)))
 			.setPerPage(3)
 			.setSelect()
 			.setCustomFunction(page -> {
@@ -368,7 +369,7 @@ public class PickaxeCommand extends Sx4Command {
 				page.forEach((upgrade, index) -> embed.addField(upgrade.getName(), upgrade.getDescription(), false));
 
 				return new MessageCreateBuilder().setEmbeds(embed.build());
-			});
+			}).build();
 
 		paged.execute(event);
 	}

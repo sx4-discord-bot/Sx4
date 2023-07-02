@@ -12,7 +12,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.HmacUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.StringUtility;
@@ -112,12 +112,13 @@ public class SteamCommand extends Sx4Command {
 			}
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), games)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), games)
 			.setAuthor("Steam Search", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
 			.setIncreasedIndex(true)
 			.setAutoSelect(true)
 			.setTimeout(60)
-			.setDisplayFunction(game -> game.getString("name"));
+			.setDisplayFunction(game -> game.getString("name"))
+			.build();
 
 		paged.onSelect(select -> {
 			Document game = select.getSelected();
@@ -209,11 +210,12 @@ public class SteamCommand extends Sx4Command {
 			profiles = List.of(new Document("url", this.getProfileUrl(query)));
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), profiles)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), profiles)
 			.setAutoSelect(true)
 			.setSelectFunction(data -> data.getString("name"))
 			.setAuthor("Steam Profiles", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
-			.setDisplayFunction(data -> "[" + data.getString("name") + "](" + data.getString("url") + ")");
+			.setDisplayFunction(data -> "[" + data.getString("name") + "](" + data.getString("url") + ")")
+			.build();
 
 		paged.onSelect(select -> {
 			String url = select.getSelected().getString("url");
@@ -309,12 +311,13 @@ public class SteamCommand extends Sx4Command {
 			}
 		}
 
-		PagedResult<Document> gamePaged = new PagedResult<>(event.getBot(), games)
+		MessagePagedResult<Document> gamePaged = new MessagePagedResult.Builder<>(event.getBot(), games)
 			.setAuthor("Steam Search", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
 			.setIncreasedIndex(true)
 			.setAutoSelect(true)
 			.setTimeout(60)
-			.setDisplayFunction(game -> game.getString("name"));
+			.setDisplayFunction(game -> game.getString("name"))
+			.build();
 
 		gamePaged.onSelect(gameSelect -> {
 			int game = gameSelect.getSelected().getInteger("appid");
@@ -329,11 +332,12 @@ public class SteamCommand extends Sx4Command {
 				.map(data -> data.append("url", "https://steamcommunity.com/profiles/" + data.getLong("id") + "/"))
 				.collect(Collectors.toList());
 
-			PagedResult<Document> profilePaged = new PagedResult<>(event.getBot(), profiles)
+			MessagePagedResult<Document> profilePaged = new MessagePagedResult.Builder<>(event.getBot(), profiles)
 				.setAutoSelect(true)
 				.setSelectFunction(data -> data.getString("name"))
 				.setAuthor("Steam Profiles", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
-				.setDisplayFunction(data -> "[" + data.getString("name") + "](" + data.getString("url") + ")");
+				.setDisplayFunction(data -> "[" + data.getString("name") + "](" + data.getString("url") + ")")
+				.build();
 
 			profilePaged.onSelect(profileSelect -> {
 				long id = profileSelect.getSelected().getLong("id");
@@ -364,7 +368,7 @@ public class SteamCommand extends Sx4Command {
 					List<Document> items = json.getList("descriptions", Document.class);
 					List<Document> assets = json.getList("assets", Document.class);
 
-					PagedResult<Document> itemPaged = new PagedResult<>(event.getBot(), items)
+					MessagePagedResult<Document> itemPaged = new MessagePagedResult.Builder<>(event.getBot(), items)
 						.setSelect()
 						.setPerPage(1)
 						.cachePages(true)
@@ -432,7 +436,7 @@ public class SteamCommand extends Sx4Command {
 									message.accept(new MessageCreateBuilder().setEmbeds(embed.build()));
 								});
 							});
-						});
+						}).build();
 
 					itemPaged.execute(event);
 				});
@@ -485,12 +489,13 @@ public class SteamCommand extends Sx4Command {
 					}
 				}
 
-				PagedResult<Map.Entry<Integer, String>> paged = new PagedResult<>(event.getBot(), new ArrayList<>(commonGames.entrySet()))
+				MessagePagedResult<Map.Entry<Integer, String>> paged = new MessagePagedResult.Builder<>(event.getBot(), new ArrayList<>(commonGames.entrySet()))
 					.setAuthor("Games In Common (" + commonGames.size() + ")", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
 					.setPerPage(15)
 					.setSelect()
 					.setIncreasedIndex(true)
-					.setDisplayFunction(d -> "[" + d.getValue() + "](https://store.steampowered.com/app/" + d.getKey() + ")");
+					.setDisplayFunction(d -> "[" + d.getValue() + "](https://store.steampowered.com/app/" + d.getKey() + ")")
+					.build();
 
 				paged.execute(event);
 			});

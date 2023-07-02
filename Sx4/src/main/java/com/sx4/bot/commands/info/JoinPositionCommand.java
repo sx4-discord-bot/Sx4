@@ -10,7 +10,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Or;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.utils.MarkdownSanitizer;
@@ -65,12 +65,13 @@ public class JoinPositionCommand extends Sx4Command {
 		Comparator<Member> comparator = reverse ? Comparator.comparing(Member::getTimeJoined).reversed() : Comparator.comparing(Member::getTimeJoined);
 		List<Member> members = event.getGuild().getMemberCache().applyStream(stream -> stream.sorted(comparator).collect(Collectors.toList()));
 
-		PagedResult<Member> paged = new PagedResult<>(event.getBot(), members)
+		MessagePagedResult<Member> paged = new MessagePagedResult.Builder<>(event.getBot(), members)
 			.setIncreasedIndex(true)
 			.setSelect()
 			.setPerPage(25)
 			.setAuthor("Users", null, event.getGuild().getIconUrl())
-			.setDisplayFunction(member -> MarkdownSanitizer.escape(member.getUser().getAsTag()));
+			.setDisplayFunction(member -> MarkdownSanitizer.escape(member.getUser().getAsTag()))
+			.build();
 
 		paged.execute(event);
 	}

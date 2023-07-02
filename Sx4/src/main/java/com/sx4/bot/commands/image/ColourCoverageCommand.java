@@ -7,7 +7,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ImageUtility;
 import com.sx4.bot.utility.NumberUtility;
@@ -45,7 +45,7 @@ public class ColourCoverageCommand extends Sx4Command {
 			List<Document> colours = data.getList("colours", Document.class);
 			long totalPixels = colours.stream().mapToInt(colour -> colour.getInteger("pixels")).sum();
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), colours)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), colours)
 				.setAuthor("Colours", null, imageUrl)
 				.setIncreasedIndex(true)
 				.setSelect()
@@ -53,7 +53,7 @@ public class ColourCoverageCommand extends Sx4Command {
 				.setDisplayFunction(colour -> {
 					int pixels = colour.getInteger("pixels");
 					return "`#" + ColourUtility.toHexString(colour.getInteger("colour")) + "` - " + pixels + " pixel" + (pixels == 1 ? "" : "s") + " (" + NumberUtility.DEFAULT_DECIMAL_FORMAT.format((pixels / (double) totalPixels) * 100) + "%)";
-				});
+				}).build();
 
 			paged.execute(event);
 		});

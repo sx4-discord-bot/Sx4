@@ -21,7 +21,7 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.MessageArgument;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.SearchUtility;
@@ -470,12 +470,12 @@ public class GiveawayCommand extends Sx4Command {
 			return;
 		}
 		
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), giveaways)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), giveaways)
 			.setAuthor("Giveaways", null, event.getGuild().getIconUrl())
 			.setDisplayFunction(data -> {
 				long endAt = data.getLong("endAt"), timeNow = Clock.systemUTC().instant().getEpochSecond();
 				return data.getLong("messageId") + " - " + (endAt - timeNow < 0 ? "Ended" : TimeUtility.LONG_TIME_FORMATTER.parse(endAt - timeNow));
-			});
+			}).build();
 		
 		paged.onSelect(select -> {
 			ShardManager shardManager = event.getShardManager();

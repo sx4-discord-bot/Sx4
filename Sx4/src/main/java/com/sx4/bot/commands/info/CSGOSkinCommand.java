@@ -11,7 +11,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.utility.TimeFormatter;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.SkinPortManager;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -127,14 +127,15 @@ public class CSGOSkinCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> suggestions = new PagedResult<>(event.getBot(), variants)
+			MessagePagedResult<Document> suggestions = new MessagePagedResult.Builder<>(event.getBot(), variants)
 				.setAuthor("SkinPort", null, "https://skinport.com/static/favicon-32x32.png")
 				.setDisplayFunction(suggestion -> {
 					String type = suggestion.getString("type");
 					return (type == null ? "" : type + " | ") + suggestion.getString("item");
 				})
 				.setIndexed(true)
-				.setAutoSelect(true);
+				.setAutoSelect(true)
+				.build();
 
 			suggestions.onSelect(select -> {
 				Document selected = select.getSelected();
@@ -172,7 +173,7 @@ public class CSGOSkinCommand extends Sx4Command {
 						return;
 					}
 
-					PagedResult<Document> skins = new PagedResult<>(event.getBot(), items)
+					MessagePagedResult<Document> skins = new MessagePagedResult.Builder<>(event.getBot(), items)
 						.setPerPage(1)
 						.setSelect()
 						.setCustomFunction(page -> {
@@ -211,7 +212,7 @@ public class CSGOSkinCommand extends Sx4Command {
 							});
 
 							return new MessageCreateBuilder().setEmbeds(embeds);
-						});
+						}).build();
 
 					skins.execute(event);
 				});
@@ -235,11 +236,12 @@ public class CSGOSkinCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> suggestions = new PagedResult<>(event.getBot(), variants)
+			MessagePagedResult<Document> suggestions = new MessagePagedResult.Builder<>(event.getBot(), variants)
 				.setAuthor("SkinBaron", null, "https://skinbaron.de/favicon.png")
 				.setDisplayFunction(suggestion -> suggestion.getString("variantName"))
 				.setIndexed(true)
-				.setAutoSelect(true);
+				.setAutoSelect(true)
+				.build();
 
 			suggestions.onSelect(select -> {
 				Document selected = select.getSelected();
@@ -263,7 +265,7 @@ public class CSGOSkinCommand extends Sx4Command {
 						return;
 					}
 
-					PagedResult<Document> skins = new PagedResult<>(event.getBot(), offers)
+					MessagePagedResult<Document> skins = new MessagePagedResult.Builder<>(event.getBot(), offers)
 						.setPerPage(1)
 						.setSelect()
 						.setCustomFunction(page -> {
@@ -305,7 +307,7 @@ public class CSGOSkinCommand extends Sx4Command {
 							});
 
 							return new MessageCreateBuilder().setEmbeds(embed.build());
-						});
+						}).build();
 
 					skins.execute(event);
 				});

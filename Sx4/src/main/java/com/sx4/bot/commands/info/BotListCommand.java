@@ -7,7 +7,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import net.dv8tion.jda.api.Permission;
 import okhttp3.Request;
 import org.bson.Document;
@@ -36,12 +36,13 @@ public class BotListCommand extends Sx4Command {
 			Document data = Document.parse(response.body().string());
 
 			List<Document> results = data.getList("results", Document.class);
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), results)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), results)
 				.setPage(page)
 				.setAuthor("Bot List", null, "https://imgur.com/HlfRQ3g.png")
 				.setIncreasedIndex(true)
 				.setSelect()
-				.setDisplayFunction(bot -> String.format("[%s](https://top.gg/bot/%s) - **%,d** servers", bot.getString("username"), bot.getString("id"), bot.getInteger("server_count")));
+				.setDisplayFunction(bot -> String.format("[%s](https://top.gg/bot/%s) - **%,d** servers", bot.getString("username"), bot.getString("id"), bot.getInteger("server_count")))
+				.build();
 
 			paged.execute(event);
 		});

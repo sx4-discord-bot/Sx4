@@ -13,7 +13,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.Item;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -94,7 +94,7 @@ public class LeaderboardCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Map.Entry<User, Long>> paged = new PagedResult<>(event.getBot(), users)
+			MessagePagedResult<Map.Entry<User, Long>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setPerPage(10)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -107,7 +107,7 @@ public class LeaderboardCommand extends Sx4Command {
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});
@@ -164,7 +164,7 @@ public class LeaderboardCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Map.Entry<User, Long>> paged = new PagedResult<>(event.getBot(), users)
+			MessagePagedResult<Map.Entry<User, Long>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setPerPage(10)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -177,7 +177,7 @@ public class LeaderboardCommand extends Sx4Command {
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});
@@ -227,7 +227,7 @@ public class LeaderboardCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Map.Entry<User, Long>> paged = new PagedResult<>(event.getBot(), users)
+			MessagePagedResult<Map.Entry<User, Long>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setPerPage(10)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -240,7 +240,7 @@ public class LeaderboardCommand extends Sx4Command {
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - $%,d\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});
@@ -296,7 +296,7 @@ public class LeaderboardCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Map.Entry<User, Long>> paged = new PagedResult<>(event.getBot(), users)
+			MessagePagedResult<Map.Entry<User, Long>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setPerPage(10)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -309,7 +309,7 @@ public class LeaderboardCommand extends Sx4Command {
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d %s\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue(), item == null ? "Item" + (entry.getValue() == 1 ? "" : "s") : item.getName())));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});
@@ -359,7 +359,7 @@ public class LeaderboardCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Map.Entry<User, Integer>> paged = new PagedResult<>(event.getBot(), users)
+			MessagePagedResult<Map.Entry<User, Integer>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setPerPage(10)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -372,7 +372,7 @@ public class LeaderboardCommand extends Sx4Command {
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d day streak\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});
@@ -428,7 +428,7 @@ public class LeaderboardCommand extends Sx4Command {
 				}
 			}
 
-			PagedResult<Map.Entry<User, Integer>> paged = new PagedResult<>(event.getBot(), users)
+			MessagePagedResult<Map.Entry<User, Integer>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setPerPage(10)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -441,7 +441,7 @@ public class LeaderboardCommand extends Sx4Command {
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d vote%s\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue(), entry.getValue() == 1 ? "" : "s")));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});

@@ -3,7 +3,7 @@ package com.sx4.bot.commands.info;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
@@ -29,12 +29,13 @@ public class BotsCommand extends Sx4Command {
 			return;
 		}
 
-		PagedResult<User> paged = new PagedResult<>(event.getBot(), bots)
+		MessagePagedResult<User> paged = new MessagePagedResult.Builder<>(event.getBot(), bots)
 			.setAuthor("Bots", null, event.getGuild().getIconUrl())
 			.setPerPage(15)
 			.setSelect()
 			.setIndexed(false)
-			.setDisplayFunction(User::getAsTag);
+			.setDisplayFunction(User::getAsTag)
+			.build();
 
 		paged.execute(event);
 	}

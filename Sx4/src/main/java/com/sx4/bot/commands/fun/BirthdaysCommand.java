@@ -6,7 +6,7 @@ import com.mongodb.client.model.Projections;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
@@ -80,7 +80,7 @@ public class BirthdaysCommand extends Sx4Command {
 
 		users.sort(Map.Entry.comparingByValue());
 
-		PagedResult<Map.Entry<User, LocalDate>> paged = new PagedResult<>(event.getBot(), users)
+		MessagePagedResult<Map.Entry<User, LocalDate>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 			.setIndexed(false)
 			.setAuthor("Upcoming Birthdays \uD83C\uDF82", null, null)
 			.setPerPage(20)
@@ -88,7 +88,7 @@ public class BirthdaysCommand extends Sx4Command {
 			.setDisplayFunction(entry -> {
 				LocalDate birthday = entry.getValue();
 				return MarkdownSanitizer.escape(entry.getKey().getAsTag()) + " - " + NumberUtility.getSuffixed(birthday.getDayOfMonth()) + " " + birthday.getMonth().getDisplayName(TextStyle.FULL, Locale.UK) + (birthday.equals(now) ? " :cake:" : "");
-			});
+			}).build();
 
 		paged.execute(event);
 	}

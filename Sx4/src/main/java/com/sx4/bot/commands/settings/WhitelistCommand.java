@@ -14,7 +14,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.settings.HolderType;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.SettingUtility;
 import net.dv8tion.jda.api.Permission;
@@ -159,11 +159,12 @@ public class WhitelistCommand extends Sx4Command {
 	public void list(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) @DefaultNull TextChannel channel) {
 		List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
 
-		PagedResult<TextChannel> channelPaged = new PagedResult<>(event.getBot(), channels)
+		MessagePagedResult<TextChannel> channelPaged = new MessagePagedResult.Builder<>(event.getBot(), channels)
 			.setAutoSelect(true)
 			.setAuthor("Channels", null, event.getGuild().getIconUrl())
 			.setDisplayFunction(TextChannel::getAsMention)
-			.setSelectFunction(TextChannel::getName);
+			.setSelectFunction(TextChannel::getName)
+			.build();
 
 		channelPaged.onSelect(channelSelect -> {
 			TextChannel selectedChannel = channelSelect.getSelected();
@@ -184,10 +185,11 @@ public class WhitelistCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> holderPaged = new PagedResult<>(event.getBot(), holders)
+			MessagePagedResult<Document> holderPaged = new MessagePagedResult.Builder<>(event.getBot(), holders)
 				.setAuthor("Users/Roles", null, event.getGuild().getIconUrl())
 				.setDisplayFunction(SettingUtility.getRoleUserDisplay(event, false))
-				.setSelectFunction(SettingUtility.getRoleUserDisplay(event, true));
+				.setSelectFunction(SettingUtility.getRoleUserDisplay(event, true))
+				.build();
 
 			holderPaged.onSelect(holderSelect -> {
 				Document holder = holderSelect.getSelected();
@@ -200,11 +202,12 @@ public class WhitelistCommand extends Sx4Command {
 					.filter(command -> bitSet.get(command.getId()))
 					.collect(Collectors.toList());
 
-				PagedResult<Sx4Command> commandPaged = new PagedResult<>(event.getBot(), commands)
+				MessagePagedResult<Sx4Command> commandPaged = new MessagePagedResult.Builder<>(event.getBot(), commands)
 					.setAuthor("Whitelisted Commands", null, event.getGuild().getIconUrl())
 					.setDisplayFunction(Sx4Command::getCommandTrigger)
 					.setSelect()
-					.setIndexed(false);
+					.setIndexed(false)
+					.build();
 
 				commandPaged.execute(event);
 			});

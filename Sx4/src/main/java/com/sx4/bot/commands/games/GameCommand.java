@@ -13,7 +13,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.games.GameState;
 import com.sx4.bot.entities.games.GameType;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.StringUtility;
@@ -102,7 +102,7 @@ public class GameCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Map.Entry<User, Long>> paged = new PagedResult<>(event.getBot(), users)
+			MessagePagedResult<Map.Entry<User, Long>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setPerPage(10)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -115,7 +115,7 @@ public class GameCommand extends Sx4Command {
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d game%s\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue(), entry.getValue() == 1 ? "" : "s")));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});
@@ -134,12 +134,13 @@ public class GameCommand extends Sx4Command {
 			return;
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), games)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), games)
 			.setAuthor("Game List", null, user.getEffectiveAvatarUrl())
 			.setIndexed(false)
 			.setPerPage(15)
 			.setSelect()
-			.setDisplayFunction(game -> "`" + GameType.fromId(game.getInteger("type")).getName() + "` - " + StringUtility.title(GameState.fromId(game.getInteger("state")).name()));
+			.setDisplayFunction(game -> "`" + GameType.fromId(game.getInteger("type")).getName() + "` - " + StringUtility.title(GameState.fromId(game.getInteger("state")).name()))
+			.build();
 
 		paged.execute(event);
 	}

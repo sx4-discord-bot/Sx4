@@ -12,7 +12,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -135,7 +135,7 @@ public class ReputationCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Map.Entry<User, Integer>> paged = new PagedResult<>(event.getBot(), users)
+			MessagePagedResult<Map.Entry<User, Integer>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setPerPage(10)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -148,7 +148,7 @@ public class ReputationCommand extends Sx4Command {
 					page.forEach((entry, index) -> embed.appendDescription(String.format("%d. `%s` - %,d reputation\n", index + 1, MarkdownSanitizer.escape(entry.getKey().getAsTag()), entry.getValue())));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});

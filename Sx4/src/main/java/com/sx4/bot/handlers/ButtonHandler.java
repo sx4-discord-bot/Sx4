@@ -15,11 +15,11 @@ import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.interaction.CustomModalId;
 import com.sx4.bot.entities.interaction.ModalType;
+import com.sx4.bot.entities.trigger.TriggerActionType;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.utility.ButtonUtility;
-import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.ImageUtility;
-import com.sx4.bot.utility.PermissionUtility;
+import com.sx4.bot.paged.InteractionPagedResult;
+import com.sx4.bot.utility.*;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
@@ -44,12 +44,10 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -630,6 +628,70 @@ public class ButtonHandler implements EventListener {
 		});
 	}
 
+	public void handleTriggerUpdateView(ButtonInteractionEvent event, CustomButtonId buttonId) {
+		Document template = this.bot.getMongo().getTriggerTemplate(Filters.eq("_id", buttonId.getArgument(0, ObjectId::new)), MongoDatabase.EMPTY_DOCUMENT);
+		if (template == null) {
+			this.reply(event, "The template connected to that trigger has been deleted " + this.bot.getConfig().getFailureEmote(), action -> action.setEphemeral(true)).queue();
+			return;
+		}
+
+		Document trigger = template.get("data", Document.class);
+
+		List<Document> actions = trigger.getList("actions", Document.class);
+		actions.sort(Comparator.comparingInt(action -> action.getInteger("order", -1)));
+
+		InteractionPagedResult<Document> pagedActions = new InteractionPagedResult.Builder<>(this.bot, actions)
+			.setSelect()
+			.setEphemeral(true)
+			.setPerPage(3)
+			.setCustomFunction(page -> {
+				EmbedBuilder embed = new EmbedBuilder();
+				embed.setTitle(template.getString("name") + " (" + template.getObjectId("_id").toHexString() + ")");
+				embed.setDescription("This trigger will be executed when someone sends a message matching `" + trigger.getString("trigger") + "`");
+
+				int uses = template.getInteger("uses");
+				embed.setFooter("Used " + uses + " time" + (uses == 1 ? "" : "s") + " | Version " + template.getInteger("version"));
+
+				AtomicInteger actionIndex = new AtomicInteger(1);
+				page.forEach((action, index) -> {
+					String type = TriggerActionType.fromId(action.getInteger("type")).toString();
+					action.append("type", type);
+
+					int order = action.getInteger("order", -1);
+					String orderText = (order == -1 ? "Unordered" : NumberUtility.getSuffixed(actionIndex.getAndIncrement())) + " Action";
+
+					embed.addField(type + " (" + orderText + ")", "```json\n" + action.toJson(MongoDatabase.PRETTY_JSON) + "```", false);
+				});
+
+				return new MessageCreateBuilder().setEmbeds(embed.build());
+			}).build();
+
+		pagedActions.execute(event);
+	}
+
+	public void handleTriggerUpdateConfirm(ButtonInteractionEvent event, CustomButtonId buttonId) {
+		Document template = this.bot.getMongo().getTriggerTemplate(Filters.eq("_id", buttonId.getArgument(0, ObjectId::new)), Projections.include("data", "version"));
+		if (template == null) {
+			this.reply(event, "The template connected to that trigger has been deleted " + this.bot.getConfig().getFailureEmote()).queue();
+			return;
+		}
+
+		Bson update = Updates.set("template.version", template.getInteger("version"));
+
+		Document data = template.get("data", Document.class);
+		for (String key : data.keySet()) {
+			update = Updates.combine(update, Updates.set(key, data.get(key)));
+		}
+
+		this.bot.getMongo().updateTrigger(Filters.eq("_id", buttonId.getArgument(1, ObjectId::new)), update, new UpdateOptions()).whenComplete((result, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event.getMessageChannel(), exception)) {
+				return;
+			}
+
+			this.reply(event, "The trigger has been updated to the latest template version " + this.bot.getConfig().getSuccessEmote()).queue();
+		});
+	}
+
 	@Override
 	public void onEvent(@NotNull GenericEvent genericEvent) {
 		if (!(genericEvent instanceof ButtonInteractionEvent event)) {
@@ -682,6 +744,8 @@ public class ButtonHandler implements EventListener {
 			case SHIP_SWIPE_LEFT -> this.handleShipSwipeLeft(event, customId);
 			case TRIGGER_VARIABLE_PURGE_CONFIRM -> this.handleTriggerVariablePurgeConfirm(event, customId);
 			case SHIP_SWIPE_RIGHT -> this.handleShipSwipeRight(event, customId);
+			case TRIGGER_UPDATE_VIEW -> this.handleTriggerUpdateView(event, customId);
+			case TRIGGER_UPDATE_CONFIRM -> this.handleTriggerUpdateConfirm(event, customId);
 		}
 	}
 

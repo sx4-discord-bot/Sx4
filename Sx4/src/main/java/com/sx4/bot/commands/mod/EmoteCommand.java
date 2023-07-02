@@ -10,7 +10,7 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.mod.PartialEmote;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.RequestUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -241,11 +241,12 @@ public class EmoteCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Role> paged = new PagedResult<>(event.getBot(), emoji.getRoles())
+			MessagePagedResult<Role> paged = new MessagePagedResult.Builder<>(event.getBot(), emoji.getRoles())
 				.setSelect()
 				.setAuthor("Roles Whitelisted", null, event.getGuild().getIconUrl())
 				.setDisplayFunction(Role::getAsMention)
-				.setIndexed(false);
+				.setIndexed(false)
+				.build();
 
 			paged.execute(event);
 		}

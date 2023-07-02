@@ -15,6 +15,7 @@ import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.management.LoggerCategory;
 import com.sx4.bot.entities.management.LoggerEvent;
 import com.sx4.bot.entities.webhook.WebhookChannel;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LoggerUtility;
@@ -253,17 +254,18 @@ public class LoggerCommand extends Sx4Command {
             return;
         }
 
-        PagedResult<Document> paged = new PagedResult<>(event.getBot(), loggers)
+        MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), loggers)
             .setAuthor("Loggers", null, event.getGuild().getIconUrl())
             .setAutoSelect(true)
-            .setDisplayFunction(data -> "<#" + data.getLong("channelId") + ">");
+            .setDisplayFunction(data -> "<#" + data.getLong("channelId") + ">")
+            .build();
 
         paged.onSelect(select -> {
             Document data = select.getSelected();
 
             EnumSet<LoggerEvent> events = LoggerEvent.getEvents(data.get("events", LoggerEvent.ALL));
 
-            PagedResult<LoggerEvent> loggerPaged = new PagedResult<>(event.getBot(), new ArrayList<>(events))
+            MessagePagedResult<LoggerEvent> loggerPaged = new MessagePagedResult.Builder<>(event.getBot(), new ArrayList<>(events))
                 .setSelect()
                 .setPerPage(20)
                 .setCustomFunction(page -> {
@@ -280,7 +282,7 @@ public class LoggerCommand extends Sx4Command {
                    embed.addField("Enabled Events", content.toString(), false);
 
                    return new MessageCreateBuilder().setEmbeds(embed.build());
-                });
+                }).build();
 
             loggerPaged.execute(event);
         });
@@ -385,10 +387,11 @@ public class LoggerCommand extends Sx4Command {
         @CommandId(61)
         @Examples({"logger events list"})
         public void list(Sx4CommandEvent event) {
-            PagedResult<LoggerEvent> paged = new PagedResult<>(event.getBot(), Arrays.asList(LoggerEvent.values()))
+            MessagePagedResult<LoggerEvent> paged = new MessagePagedResult.Builder<>(event.getBot(), Arrays.asList(LoggerEvent.values()))
                 .setPerPage(15)
                 .setAuthor("Events List", null, event.getGuild().getIconUrl())
-                .setIndexed(false);
+                .setIndexed(false)
+                .build();
 
             paged.execute(event);
         }
@@ -420,11 +423,12 @@ public class LoggerCommand extends Sx4Command {
                 return;
             }
 
-            PagedResult<LoggerCategory> paged = new PagedResult<>(event.getBot(), new ArrayList<>(common))
+            MessagePagedResult<LoggerCategory> paged = new MessagePagedResult.Builder<>(event.getBot(), new ArrayList<>(common))
                 .setAuthor("Conflicting Types", null, event.getGuild().getIconUrl())
                 .setDisplayFunction(LoggerCategory::getName)
                 .setTimeout(60)
-                .setAutoSelect(true);
+                .setAutoSelect(true)
+                .build();
 
             paged.onSelect(select -> {
                 LoggerCategory category = select.getSelected();
@@ -477,11 +481,12 @@ public class LoggerCommand extends Sx4Command {
                 return;
             }
 
-            PagedResult<LoggerCategory> paged = new PagedResult<>(event.getBot(), new ArrayList<>(common))
+            MessagePagedResult<LoggerCategory> paged = new MessagePagedResult.Builder<>(event.getBot(), new ArrayList<>(common))
                 .setAuthor("Conflicting Types", null, event.getGuild().getIconUrl())
                 .setDisplayFunction(LoggerCategory::getName)
                 .setTimeout(60)
-                .setAutoSelect(true);
+                .setAutoSelect(true)
+                .build();
 
             paged.onSelect(select -> {
                 LoggerCategory category = select.getSelected();
@@ -535,11 +540,12 @@ public class LoggerCommand extends Sx4Command {
                 return;
             }
 
-            PagedResult<LoggerCategory> paged = new PagedResult<>(event.getBot(), new ArrayList<>(common))
+            MessagePagedResult<LoggerCategory> paged = new MessagePagedResult.Builder<>(event.getBot(), new ArrayList<>(common))
                 .setAuthor("Conflicting Types", null, event.getGuild().getIconUrl())
                 .setDisplayFunction(LoggerCategory::getName)
                 .setTimeout(60)
-                .setAutoSelect(true);
+                .setAutoSelect(true)
+                .build();
 
             paged.onSelect(select -> {
                 LoggerCategory category = select.getSelected();

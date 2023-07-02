@@ -3,6 +3,7 @@ package com.sx4.bot.commands.misc;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -20,7 +21,7 @@ public class PrivacyPolicyCommand extends Sx4Command {
     }
 
     public void onCommand(Sx4CommandEvent event) {
-        PagedResult<Document> paged = new PagedResult<>(event.getBot(), event.getConfig().getPolicies())
+        MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), event.getConfig().getPolicies())
             .setPerPage(1)
             .setSelect()
             .setCustomFunction(page -> {
@@ -35,7 +36,7 @@ public class PrivacyPolicyCommand extends Sx4Command {
                 });
 
                 return builder.setEmbeds(embed.build());
-            });
+            }).build();
 
         paged.execute(event);
     }

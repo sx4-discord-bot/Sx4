@@ -7,7 +7,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.formatter.output.FormatterManager;
 import com.sx4.bot.formatter.output.function.FormatterFunction;
 import com.sx4.bot.formatter.output.function.FormatterVariable;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ClassUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -74,10 +74,11 @@ public class FormatterCommand extends Sx4Command {
 			return;
 		}
 
-		PagedResult<Class<?>> paged = new PagedResult<>(event.getBot(), filteredClasses)
+		MessagePagedResult<Class<?>> paged = new MessagePagedResult.Builder<>(event.getBot(), filteredClasses)
 			.setPerPage(15)
 			.setAutoSelect(true)
-			.setDisplayFunction(Class::getSimpleName);
+			.setDisplayFunction(Class::getSimpleName)
+			.build();
 
 		paged.onSelect(select -> {
 			Class<?> clazz = select.getSelected();

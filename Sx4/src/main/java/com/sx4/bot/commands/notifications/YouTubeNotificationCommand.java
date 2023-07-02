@@ -24,7 +24,7 @@ import com.sx4.bot.formatter.output.JsonFormatter;
 import com.sx4.bot.formatter.output.function.FormatterVariable;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.YouTubeManager;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FutureUtility;
@@ -473,7 +473,7 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				names.putAll(map);
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), notifications)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), notifications)
 				.setIncreasedIndex(true)
 				.setAutoSelect(false)
 				.setAuthor("YouTube Notifications", null, event.getGuild().getIconUrl())
@@ -481,7 +481,8 @@ public class YouTubeNotificationCommand extends Sx4Command {
 					String uploaderId = data.getString("uploaderId");
 					return String.format("%s - [%s](https://youtube.com/channel/%s)", data.getObjectId("_id").toHexString(), names.getOrDefault(uploaderId, "Unknown"), uploaderId);
 				})
-				.setSelect(SelectType.INDEX);
+				.setSelect(SelectType.INDEX)
+				.build();
 
 			paged.onSelect(selected -> this.sendStats(event, selected.getSelected()));
 

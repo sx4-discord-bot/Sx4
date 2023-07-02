@@ -13,6 +13,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.model.Operators;
 import com.sx4.bot.entities.economy.item.*;
 import com.sx4.bot.managers.EconomyManager;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -50,7 +51,7 @@ public class MinerCommand extends Sx4Command {
 	public void shop(Sx4CommandEvent event) {
 		List<Miner> miners = event.getBot().getEconomyManager().getItems(Miner.class);
 
-		PagedResult<Miner> paged = new PagedResult<>(event.getBot(), miners)
+		MessagePagedResult<Miner> paged = new MessagePagedResult.Builder<>(event.getBot(), miners)
 			.setPerPage(12)
 			.setSelect()
 			.setCustomFunction(page -> {
@@ -63,7 +64,7 @@ public class MinerCommand extends Sx4Command {
 				page.forEach((miner, index) -> embed.addField(miner.getName(), String.format("Price: $%,d", miner.getPrice()), true));
 
 				return new MessageCreateBuilder().setEmbeds(embed.build());
-			});
+			}).build();
 
 		paged.execute(event);
 	}

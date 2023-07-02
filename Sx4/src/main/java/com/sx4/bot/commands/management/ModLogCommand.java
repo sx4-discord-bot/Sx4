@@ -22,7 +22,7 @@ import com.sx4.bot.entities.mod.ModLog;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.Action;
 import com.sx4.bot.entities.webhook.WebhookChannel;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.User;
@@ -194,14 +194,15 @@ public class ModLogCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), allData)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), allData)
 				.setDisplayFunction(data -> {
 					long targetId = data.getLong("targetId");
 					User target = event.getShardManager().getUserById(targetId);
 					
 					return Action.fromData(data.get("action", Document.class)) + " to `" + (target == null ? targetId : target.getAsTag() + "`");
 				})
-				.setIncreasedIndex(true);
+				.setIncreasedIndex(true)
+				.build();
 			
 			paged.onSelect(select -> event.reply(ModLog.fromData(select.getSelected()).getEmbed(event.getShardManager())).queue());
 			

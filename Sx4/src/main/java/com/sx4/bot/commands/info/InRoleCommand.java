@@ -5,7 +5,7 @@ import com.jockie.bot.core.option.Option;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
@@ -33,12 +33,13 @@ public class InRoleCommand extends Sx4Command {
 			return;
 		}
 
-		PagedResult<Member> paged = new PagedResult<>(event.getBot(), members)
+		MessagePagedResult<Member> paged = new MessagePagedResult.Builder<>(event.getBot(), members)
 			.setPerPage(15)
 			.setSelect()
 			.setDisplayFunction(member -> member.getUser().getAsTag())
 			.setIndexed(false)
-			.setAuthor("Users (" + members.size() + ")", null, event.getGuild().getIconUrl());
+			.setAuthor("Users (" + members.size() + ")", null, event.getGuild().getIconUrl())
+			.build();
 
 		paged.execute(event);
 	}

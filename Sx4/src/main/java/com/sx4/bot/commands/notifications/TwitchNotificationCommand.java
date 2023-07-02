@@ -26,7 +26,7 @@ import com.sx4.bot.formatter.output.JsonFormatter;
 import com.sx4.bot.formatter.output.function.FormatterVariable;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.TwitchManager;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MessageUtility;
@@ -478,14 +478,14 @@ public class TwitchNotificationCommand extends Sx4Command {
 				names.putAll(map);
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), notifications)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), notifications)
 				.setSelect()
 				.setAuthor("Twitch Notifications", null, event.getGuild().getIconUrl())
 				.setDisplayFunction(data -> {
 					TwitchStreamer streamer = names.get(data.getString("streamerId"));
 
 					return String.format("%s - [%s](%s)", data.getObjectId("_id").toHexString(), streamer == null ? "Unknown" : streamer.getName(), streamer == null ? "https://twitch.tv" : streamer.getUrl());
-				});
+				}).build();
 
 			paged.execute(event);
 		});

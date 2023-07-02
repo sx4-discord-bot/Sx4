@@ -18,7 +18,7 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.mod.Reason;
 import com.sx4.bot.entities.mod.action.ModAction;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.ModUtility;
 import com.sx4.bot.utility.TimeUtility;
@@ -185,7 +185,7 @@ public class MuteCommand extends Sx4Command {
 
 		mutes.sort(Comparator.comparingLong(d -> d.getLong("unmuteAt")));
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), mutes)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), mutes)
 			.setAuthor("Muted Users", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
 			.setSelect()
@@ -193,7 +193,7 @@ public class MuteCommand extends Sx4Command {
 				User user = event.getShardManager().getUserById(data.getLong("userId"));
 
 				return (user == null ? "Anonymous#0000" : user.getAsTag()) + " - " + TimeUtility.LONG_TIME_FORMATTER.parse(data.getLong("unmuteAt") - Clock.systemUTC().instant().getEpochSecond());
-			});
+			}).build();
 
 		paged.execute(event);
 	}

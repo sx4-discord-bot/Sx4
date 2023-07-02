@@ -15,7 +15,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Member;
@@ -128,13 +128,13 @@ public class MarriageCommand extends Sx4Command {
 					return partnerId == author.getIdLong() ? marriage.getLong("proposerId") : partnerId;
 				}).collect(Collectors.toList());
 
-			PagedResult<Long> paged = new PagedResult<>(event.getBot(), userIds)
+			MessagePagedResult<Long> paged = new MessagePagedResult.Builder<>(event.getBot(), userIds)
 				.setAuthor("Divorce", null, author.getEffectiveAvatarUrl())
 				.setTimeout(60)
 				.setDisplayFunction(userId -> {
 					User other = event.getShardManager().getUserById(userId);
 					return (other == null ? "Anonymous#0000" : other.getAsTag()) + " (" + userId + ")";
-				});
+				}).build();
 
 			paged.onTimeout(() -> event.reply("Timed out :stopwatch:").queue());
 

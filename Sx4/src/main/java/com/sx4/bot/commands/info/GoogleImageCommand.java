@@ -5,6 +5,7 @@ import com.sx4.bot.cache.GoogleSearchCache.GoogleSearchResult;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import jakarta.ws.rs.ForbiddenException;
@@ -50,7 +51,7 @@ public class GoogleImageCommand extends Sx4Command {
 
 			String googleUrl = "https://google.com/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&tbm=isch" + (nsfw ? "" : "&safe=active");
 
-			PagedResult<GoogleSearchResult> paged = new PagedResult<>(event.getBot(), results)
+			MessagePagedResult<GoogleSearchResult> paged = new MessagePagedResult.Builder<>(event.getBot(), results)
 				.setIndexed(false)
 				.setSelect()
 				.setPerPage(4)
@@ -67,7 +68,7 @@ public class GoogleImageCommand extends Sx4Command {
 					});
 
 					return new MessageCreateBuilder().setEmbeds(embeds);
-				});
+				}).build();
 
 			paged.execute(event);
 		});

@@ -8,7 +8,7 @@ import com.mongodb.client.model.Sorts;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.User;
@@ -97,7 +97,7 @@ public class CommandStatsCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), commands)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), commands)
 				.setIndexed(false)
 				.setSelect()
 				.setAuthor("Command Stats", null, event.getSelfUser().getEffectiveAvatarUrl())
@@ -125,7 +125,7 @@ public class CommandStatsCommand extends Sx4Command {
 
 					long count = data.getLong("count");
 					return (prefix == null ? "Unknown" : prefix) + " - " + String.format("%,d", count) + " use" + (count == 1 ? "" : "s");
-				});
+				}).build();
 
 			paged.execute(event);
 		});

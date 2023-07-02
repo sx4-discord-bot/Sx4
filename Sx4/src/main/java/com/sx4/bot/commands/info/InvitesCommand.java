@@ -9,7 +9,7 @@ import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Invite;
@@ -96,7 +96,7 @@ public class InvitesCommand extends Sx4Command {
 			List<Map.Entry<Long, Integer>> sortedCount = new ArrayList<>(count.entrySet());
 			sortedCount.sort(Collections.reverseOrder(Comparator.comparingInt(Map.Entry::getValue)));
 
-			PagedResult<Map.Entry<Long, Integer>> paged = new PagedResult<>(event.getBot(), sortedCount)
+			MessagePagedResult<Map.Entry<Long, Integer>> paged = new MessagePagedResult.Builder<>(event.getBot(), sortedCount)
 				.setIncreasedIndex(true)
 				.setSelect()
 				.setAuthor("Invites Leaderboard", null, event.getGuild().getIconUrl())
@@ -108,7 +108,7 @@ public class InvitesCommand extends Sx4Command {
 					String memberString = member == null ? String.valueOf(data.getKey()) : member.getUser().getAsTag();
 
 					return String.format("`%s` - %,d %s (%s%%)", memberString, data.getValue(), data.getValue() == 1 ? "invite" : "invites", percent);
-				});
+				}).build();
 
 			paged.execute(event);
 		});

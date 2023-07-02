@@ -25,7 +25,7 @@ import com.sx4.bot.formatter.output.FormatterManager;
 import com.sx4.bot.formatter.output.JsonFormatter;
 import com.sx4.bot.formatter.output.function.FormatterVariable;
 import com.sx4.bot.managers.FreeGameManager;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FreeGameUtility;
 import com.sx4.bot.utility.MessageUtility;
@@ -94,7 +94,7 @@ public class FreeGamesCommand extends Sx4Command {
 
 		List<FreeGame<?>> freeGames = games.stream().map(FreeGameUtility::getFreeGame).collect(Collectors.toList());
 
-		PagedResult<FreeGame<?>> paged = new PagedResult<>(event.getBot(), freeGames)
+		MessagePagedResult<FreeGame<?>> paged = new MessagePagedResult.Builder<>(event.getBot(), freeGames)
 			.setSelect()
 			.setPerPage(1)
 			.setCustomFunction(page -> {
@@ -104,7 +104,7 @@ public class FreeGamesCommand extends Sx4Command {
 				page.forEach((game, index) -> this.setGameEmbed(embed, game));
 
 				return new MessageCreateBuilder().setEmbeds(embed.build());
-			});
+			}).build();
 
 		paged.execute(event);
 	}
@@ -119,7 +119,7 @@ public class FreeGamesCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<EpicFreeGame> paged = new PagedResult<>(event.getBot(), freeGames)
+			MessagePagedResult<EpicFreeGame> paged = new MessagePagedResult.Builder<>(event.getBot(), freeGames)
 				.setSelect()
 				.setPerPage(1)
 				.setCustomFunction(page -> {
@@ -129,7 +129,7 @@ public class FreeGamesCommand extends Sx4Command {
 					page.forEach((game, index) -> this.setGameEmbed(embed, game));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.execute(event);
 		});
@@ -141,7 +141,7 @@ public class FreeGamesCommand extends Sx4Command {
 	public void history(Sx4CommandEvent event) {
 		List<Document> games = event.getMongo().getAnnouncedGames().find().sort(Sorts.descending("promotion.start")).into(new ArrayList<>());
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), games)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), games)
 			.setPerPage(15)
 			.setAuthor("Free Games History", null, null)
 			.setSelectFunction(data -> data.getString("title"))
@@ -149,7 +149,7 @@ public class FreeGamesCommand extends Sx4Command {
 				FreeGame<?> game = FreeGameUtility.getFreeGame(data);
 
 				return "[" + game.getTitle() + "](" + game.getUrl() + ") - " + TimeFormat.DATE_SHORT.format(game.getPromotionStart()) + " to " + TimeFormat.DATE_SHORT.format(game.getPromotionEnd());
-			});
+			}).build();
 
 		paged.onSelect(select -> {
 			FreeGame<?> game = FreeGameUtility.getFreeGame(select.getSelected());

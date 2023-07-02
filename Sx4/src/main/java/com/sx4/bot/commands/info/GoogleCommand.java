@@ -5,7 +5,7 @@ import com.sx4.bot.cache.GoogleSearchCache.GoogleSearchResult;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.StringUtility;
 import jakarta.ws.rs.ForbiddenException;
@@ -45,7 +45,7 @@ public class GoogleCommand extends Sx4Command {
 
 			String googleUrl = "https://www.google.co.uk/search?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + (nsfw ? "" : "&safe=active");
 
-			PagedResult<GoogleSearchResult> paged = new PagedResult<>(event.getBot(), results)
+			MessagePagedResult<GoogleSearchResult> paged = new MessagePagedResult.Builder<>(event.getBot(), results)
 				.setIndexed(false)
 				.setSelect()
 				.setPerPage(3)
@@ -54,7 +54,7 @@ public class GoogleCommand extends Sx4Command {
 					String title = result.getTitle(), link = result.getLink(), snippet = result.getSnippet();
 
 					return "**[" + StringUtility.limit(title, 32) + "](" + link + ")**\n" + StringUtility.limit(snippet, 246, " ...") + "\n";
-				});
+				}).build();
 
 			paged.execute(event);
 		});

@@ -15,7 +15,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.management.MediaType;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
@@ -112,11 +112,12 @@ public class MediaModeCommand extends Sx4Command {
 			return;
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), mediaChannels)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), mediaChannels)
 			.setAuthor("Media Only Channels", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
 			.setSelect()
-			.setDisplayFunction(data -> "<#" + data.getLong("channelId") + ">");
+			.setDisplayFunction(data -> "<#" + data.getLong("channelId") + ">")
+			.build();
 
 		paged.execute(event);
 	}

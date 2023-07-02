@@ -3,7 +3,7 @@ package com.sx4.bot.commands.info;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Role;
 
@@ -20,12 +20,13 @@ public class ServerRolesCommand extends Sx4Command {
 	}
 
 	public void onCommand(Sx4CommandEvent event) {
-		PagedResult<Role> paged = new PagedResult<>(event.getBot(), event.getGuild().getRoles())
+		MessagePagedResult<Role> paged = new MessagePagedResult.Builder<>(event.getBot(), event.getGuild().getRoles())
 			.setPerPage(15)
 			.setAuthor("Roles", null, event.getGuild().getIconUrl())
 			.setSelect()
 			.setIndexed(false)
-			.setDisplayFunction(Role::getAsMention);
+			.setDisplayFunction(Role::getAsMention)
+			.build();
 
 		paged.execute(event);
 	}

@@ -3,7 +3,7 @@ package com.sx4.bot.commands.info;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
 import net.dv8tion.jda.api.entities.emoji.RichCustomEmoji;
@@ -27,12 +27,13 @@ public class ServerEmotesCommand extends Sx4Command {
 	public void onCommand(Sx4CommandEvent event) {
 		List<RichCustomEmoji> emotes = event.getGuild().getEmojiCache().applyStream(stream -> stream.sorted(Comparator.comparing(CustomEmoji::isAnimated)).collect(Collectors.toList()));
 
-		PagedResult<RichCustomEmoji> paged = new PagedResult<>(event.getBot(), emotes)
+		MessagePagedResult<RichCustomEmoji> paged = new MessagePagedResult.Builder<>(event.getBot(), emotes)
 			.setIndexed(false)
 			.setSelect()
 			.setPerPage(15)
 			.setAuthor("Emotes", null, event.getGuild().getIconUrl())
-			.setDisplayFunction(emote -> (event.getSelfMember().canInteract(emote) ? emote.getAsMention() : "[:" + emote.getName() + ":](" + emote.getImageUrl() + ")") + " - " + emote.getName());
+			.setDisplayFunction(emote -> (event.getSelfMember().canInteract(emote) ? emote.getAsMention() : "[:" + emote.getName() + ":](" + emote.getImageUrl() + ")") + " - " + emote.getName())
+			.build();
 
 		paged.execute(event);
 	}

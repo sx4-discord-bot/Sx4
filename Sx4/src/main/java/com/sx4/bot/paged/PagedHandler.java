@@ -51,7 +51,7 @@ public class PagedHandler implements EventListener {
 			return;
 		}
 
-		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(event.getMessageIdLong());
+		PagedResult<?, ?> pagedResult = this.bot.getPagedManager().getPagedResult(event.getMessageIdLong());
 		if (pagedResult == null) {
 			event.reply("This paged result timed out").setEphemeral(true).queue();
 			return;
@@ -81,7 +81,7 @@ public class PagedHandler implements EventListener {
 			return;
 		}
 
-		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(event.getMessageIdLong());
+		PagedResult<?, ?> pagedResult = this.bot.getPagedManager().getPagedResult(event.getMessageIdLong());
 		if (pagedResult == null) {
 			event.reply("This paged result timed out").setEphemeral(true).queue();
 			return;
@@ -97,9 +97,9 @@ public class PagedHandler implements EventListener {
 		}
 
 		if (id.equals("next")) {
-			pagedResult.nextPage().ensure(event);
+			pagedResult.nextPage().update(event);
 		} else {
-			pagedResult.previousPage().ensure(event);
+			pagedResult.previousPage().update(event);
 		}
 	}
 
@@ -107,7 +107,7 @@ public class PagedHandler implements EventListener {
 		MessageChannel channel = message.getChannel();
 		User author = message.getAuthor();
 
-		PagedResult<?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
+		PagedResult<?, ?> pagedResult = this.bot.getPagedManager().getPagedResult(channel.getIdLong(), author.getIdLong());
 		if (pagedResult == null) {
 			return;
 		}
@@ -119,12 +119,12 @@ public class PagedHandler implements EventListener {
 		
 		if (this.next.contains(contentLower)) {
 			if (pagedResult.getNextPage() != pagedResult.getPage()) {
-				pagedResult.nextPage().ensure(channel);
+				pagedResult.nextPage().update();
 				this.attemptDelete(message);
 			}
 		} else if (this.previous.contains(contentLower)) {
 			if (pagedResult.getPreviousPage() != pagedResult.getPage()) {
-				pagedResult.previousPage().ensure(channel);
+				pagedResult.previousPage().update();
 				this.attemptDelete(message);
 			}
 		} else if (this.cancel.contains(contentLower)) {
@@ -144,7 +144,7 @@ public class PagedHandler implements EventListener {
 				try {
 					int page = Integer.parseInt(contentLower.substring(index + 1));
 					if (page > 0 && page <= pagedResult.getMaxPage() && page != pagedResult.getPage()) {
-						pagedResult.setPage(page).ensure(channel);
+						pagedResult.setPage(page).update();
 						this.attemptDelete(message);
 
 						return;

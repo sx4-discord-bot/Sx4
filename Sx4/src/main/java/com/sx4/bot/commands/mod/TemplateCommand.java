@@ -18,7 +18,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
@@ -118,9 +118,10 @@ public class TemplateCommand extends Sx4Command {
 			return;
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), triggers)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), triggers)
 			.setAuthor("Templates", null, event.getGuild().getIconUrl())
-			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + data.getString("template"));
+			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + data.getString("template"))
+			.build();
 
 		paged.onSelect(select -> event.reply(select.getSelected().getString("reason")).queue());
 

@@ -19,7 +19,7 @@ import com.sx4.bot.entities.argument.TimedArgument;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.management.AutoRoleFilter;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.AutoRoleUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.FutureUtility;
@@ -215,11 +215,12 @@ public class AutoRoleCommand extends Sx4Command {
 			.filter(Objects::nonNull)
 			.collect(Collectors.toList());
 		
-		PagedResult<Role> paged = new PagedResult<>(event.getBot(), roles)
+		MessagePagedResult<Role> paged = new MessagePagedResult.Builder<>(event.getBot(), roles)
 			.setAuthor("Auto Roles", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
 			.setSelect()
-			.setDisplayFunction(Role::getAsMention);
+			.setDisplayFunction(Role::getAsMention)
+			.build();
 		
 		paged.execute(event);
 	}

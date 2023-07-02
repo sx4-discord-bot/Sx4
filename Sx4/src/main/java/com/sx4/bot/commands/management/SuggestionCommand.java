@@ -22,7 +22,7 @@ import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.management.Suggestion;
 import com.sx4.bot.entities.management.SuggestionState;
 import com.sx4.bot.entities.webhook.WebhookChannel;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
@@ -340,14 +340,14 @@ public class SuggestionCommand extends Sx4Command {
 
 			List<Document> states = data.getList("states", Document.class);
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), suggestions)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), suggestions)
 				.setIncreasedIndex(true)
 				.setDisplayFunction(d -> {
 					long authorId = d.getLong("authorId");
 					User author = event.getShardManager().getUserById(authorId);
 
 					return String.format("`%s` by %s - **%s**", d.getObjectId("_id").toHexString(), author == null ? authorId : author.getAsTag(), d.getString("state"));
-				});
+				}).build();
 
 			paged.onSelect(select -> {
 				Suggestion suggestion = Suggestion.fromData(select.getSelected());

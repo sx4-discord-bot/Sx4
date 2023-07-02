@@ -5,7 +5,7 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.SearchUtility;
@@ -54,9 +54,10 @@ public class DiscordBotCommand extends Sx4Command {
 				event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
 					Document data = Document.parse(response.body().string());
 
-					PagedResult<Document> paged = new PagedResult<>(event.getBot(), data.getList("results", Document.class))
+					MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), data.getList("results", Document.class))
 						.setAutoSelect(true)
-						.setDisplayFunction(d -> d.getString("name") + " (" + d.getString("id") + ")");
+						.setDisplayFunction(d -> d.getString("name") + " (" + d.getString("id") + ")")
+						.build();
 
 					paged.onSelect(select -> future.complete(select.getSelected().getString("id")));
 

@@ -24,7 +24,8 @@ import com.sx4.bot.formatter.exception.FormatterException;
 import com.sx4.bot.formatter.input.InputFormatter;
 import com.sx4.bot.formatter.output.FormatterManager;
 import com.sx4.bot.formatter.output.function.FormatterVariable;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
+import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.*;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -173,6 +174,10 @@ public class TriggerCommand extends Sx4Command {
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void add(Sx4CommandEvent event, @Argument(value="template name") String name) {
 		Document template = event.getMongo().getTriggerTemplate(Filters.eq("name", name), Projections.include("data", "version"));
+		if (template == null) {
+			event.replyFailure("I could not find that trigger template").queue();
+			return;
+		}
 
 		ObjectId templateId = template.getObjectId("_id");
 		Document templateInfo = new Document("id", templateId)
@@ -195,6 +200,79 @@ public class TriggerCommand extends Sx4Command {
 			}
 
 			event.replySuccess("That trigger has been added with id `" + result.getInsertedId().asObjectId().getValue().toHexString() + "`").queue();
+		});
+	}
+
+	@Command(value="update", description="Updates a trigger to the latest version of the template it's linked to")
+	@CommandId(522)
+	@Examples({"trigger update 6006ff6b94c9ed0f764ada83"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void update(Sx4CommandEvent event, @Argument(value="id") ObjectId id) {
+		List<Bson> templatePipeline = List.of(
+			Aggregates.match(Operators.expr(Operators.eq("$_id", "$$templateId"))),
+			Aggregates.project(Projections.include("data", "version"))
+		);
+
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.eq("_id", id)),
+			Aggregates.project(Projections.include("template")),
+			Aggregates.lookup("triggerTemplates", List.of(new Variable<>("templateId", "$template.id")), templatePipeline, "fullTemplate"),
+			Aggregates.addFields(new Field<>("fullTemplate", Operators.cond(Operators.isEmpty("$fullTemplate"), new Document(), Operators.arrayElemAt("$fullTemplate", 0))))
+		);
+
+		event.getMongo().aggregateTriggers(pipeline).whenComplete((documents, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
+			}
+
+			if (documents.isEmpty()) {
+				event.replyFailure("I could not find that trigger").queue();
+				return;
+			}
+
+			Document data = documents.get(0);
+			if (!data.containsKey("template")) {
+				event.replyFailure("That trigger is not connected to a template").queue();
+				return;
+			}
+
+			Document template = data.get("fullTemplate", Document.class);
+			if (template.isEmpty()) {
+				event.replyFailure("The template connected to that trigger has been deleted").queue();
+				return;
+			}
+
+			int templateVersion = template.getInteger("version"), version = data.getEmbedded(List.of("template", "version"), Integer.class);
+			if (version == templateVersion) {
+				event.replyFailure("Your trigger is already up to date with the template").queue();
+				return;
+			}
+
+			CustomButtonId.Builder builder = new CustomButtonId.Builder()
+				.setOwners(event.getAuthor().getIdLong())
+				.setTimeout(60);
+
+			CustomButtonId reject = builder.setType(ButtonType.GENERIC_REJECT).build();
+
+			CustomButtonId view = builder
+				.setType(ButtonType.TRIGGER_UPDATE_VIEW)
+				.setArguments(template.getObjectId("_id").toHexString())
+				.build();
+
+			CustomButtonId confirm = builder
+				.setType(ButtonType.TRIGGER_UPDATE_CONFIRM)
+				.setArguments(template.getObjectId("_id").toHexString(), data.getObjectId("_id").toHexString())
+				.build();
+
+			ActionRow row = ActionRow.of(
+				confirm.asButton(ButtonStyle.SUCCESS, "Yes"),
+				reject.asButton(ButtonStyle.DANGER, "No"),
+				view.asButton(ButtonStyle.PRIMARY, "View Updated Version")
+			);
+
+			event.reply(event.getAuthor().getName() + ", are you sure you want to update your trigger to version from " + version + " to " + templateVersion)
+				.setComponents(row)
+				.queue();
 		});
 	}
 
@@ -501,12 +579,13 @@ public class TriggerCommand extends Sx4Command {
 			return;
 		}
 
-		PagedResult<Document> paged = new PagedResult<>(event.getBot(), triggers)
+		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), triggers)
 			.setAuthor("Triggers", null, event.getGuild().getIconUrl())
 			.setIndexed(false)
-			.setSelect(PagedResult.SelectType.OBJECT)
+			.setSelect(SelectType.OBJECT)
 			.setSelectFunction(data -> StringUtility.limit(data.getString("trigger"), StringSelectMenu.PLACEHOLDER_MAX_LENGTH, "..."))
-			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + StringUtility.limit(data.getString("trigger"), MessageEmbed.DESCRIPTION_MAX_LENGTH / 10 - 29, "..."));
+			.setDisplayFunction(data -> "`" + data.getObjectId("_id").toHexString() + "` - " + StringUtility.limit(data.getString("trigger"), MessageEmbed.DESCRIPTION_MAX_LENGTH / 10 - 29, "..."))
+			.build();
 
 		paged.onSelect(select -> {
 			Document trigger = select.getSelected();
@@ -514,7 +593,7 @@ public class TriggerCommand extends Sx4Command {
 			List<Document> actions = trigger.getList("actions", Document.class);
 			actions.sort(Comparator.comparingInt(action -> action.getInteger("order", -1)));
 
-			PagedResult<Document> pagedActions = new PagedResult<>(event.getBot(), actions)
+			MessagePagedResult<Document> pagedActions = new MessagePagedResult.Builder<>(event.getBot(), actions)
 				.setSelect()
 				.setPerPage(3)
 				.setCustomFunction(page -> {
@@ -535,7 +614,7 @@ public class TriggerCommand extends Sx4Command {
 					});
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			pagedActions.execute(event);
 		});
@@ -845,8 +924,8 @@ public class TriggerCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), templates)
-				.setSelect(PagedResult.SelectType.OBJECT)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), templates)
+				.setSelect(SelectType.OBJECT)
 				.setPerPage(9)
 				.setSelectFunction(template -> template.getString("name"))
 				.setCustomFunction(page -> {
@@ -857,7 +936,7 @@ public class TriggerCommand extends Sx4Command {
 					page.forEach((template, index) -> embed.addField(template.getString("name"), template.getString("description"), true));
 
 					return new MessageCreateBuilder().setEmbeds(embed.build());
-				});
+				}).build();
 
 			paged.onSelect(select -> {
 				Document template = select.getSelected();
@@ -866,7 +945,7 @@ public class TriggerCommand extends Sx4Command {
 				List<Document> actions = trigger.getList("actions", Document.class);
 				actions.sort(Comparator.comparingInt(action -> action.getInteger("order", -1)));
 
-				PagedResult<Document> pagedActions = new PagedResult<>(event.getBot(), actions)
+				MessagePagedResult<Document> pagedActions = new MessagePagedResult.Builder<>(event.getBot(), actions)
 					.setSelect()
 					.setPerPage(3)
 					.setCustomFunction(page -> {
@@ -889,7 +968,7 @@ public class TriggerCommand extends Sx4Command {
 						});
 
 						return new MessageCreateBuilder().setEmbeds(embed.build());
-					});
+					}).build();
 
 				pagedActions.execute(event);
 			});

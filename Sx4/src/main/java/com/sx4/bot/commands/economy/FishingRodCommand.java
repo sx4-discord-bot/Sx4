@@ -25,6 +25,7 @@ import com.sx4.bot.entities.economy.item.Rod;
 import com.sx4.bot.entities.economy.upgrade.Upgrade;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult;
 import com.sx4.bot.utility.EconomyUtility;
 import com.sx4.bot.utility.ExceptionUtility;
@@ -65,7 +66,7 @@ public class FishingRodCommand extends Sx4Command {
 	public void shop(Sx4CommandEvent event) {
 		List<Rod> rods = event.getBot().getEconomyManager().getItems(Rod.class);
 
-		PagedResult<Rod> paged = new PagedResult<>(event.getBot(), rods)
+		MessagePagedResult<Rod> paged = new MessagePagedResult.Builder<>(event.getBot(), rods)
 			.setPerPage(12)
 			.setSelect()
 			.setCustomFunction(page -> {
@@ -82,7 +83,7 @@ public class FishingRodCommand extends Sx4Command {
 				});
 
 				return new MessageCreateBuilder().setEmbeds(embed.build());
-			});
+			}).build();
 
 		paged.execute(event);
 	}
@@ -352,7 +353,7 @@ public class FishingRodCommand extends Sx4Command {
 	public void upgrades(Sx4CommandEvent event) {
 		EnumSet<Upgrade> upgrades = Upgrade.getUpgrades(ItemType.ROD);
 
-		PagedResult<Upgrade> paged = new PagedResult<>(event.getBot(), Arrays.asList(upgrades.toArray(Upgrade[]::new)))
+		MessagePagedResult<Upgrade> paged = new MessagePagedResult.Builder<>(event.getBot(), Arrays.asList(upgrades.toArray(Upgrade[]::new)))
 			.setPerPage(3)
 			.setCustomFunction(page -> {
 				EmbedBuilder embed = new EmbedBuilder()
@@ -361,7 +362,7 @@ public class FishingRodCommand extends Sx4Command {
 				page.forEach((upgrade, index) -> embed.addField(upgrade.getName(), upgrade.getDescription(), false));
 
 				return new MessageCreateBuilder().setEmbeds(embed.build());
-			});
+			}).build();
 
 		paged.execute(event);
 	}

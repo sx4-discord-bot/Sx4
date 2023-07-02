@@ -9,7 +9,7 @@ import com.sx4.bot.entities.info.IGDBFilter;
 import com.sx4.bot.entities.info.IGDBParser;
 import com.sx4.bot.entities.info.IGDBSort;
 import com.sx4.bot.http.HttpCallback;
-import com.sx4.bot.paged.PagedResult;
+import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -70,11 +70,12 @@ public class IGDBCommand extends Sx4Command {
 				return;
 			}
 
-			PagedResult<Document> paged = new PagedResult<>(event.getBot(), results)
+			MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), results)
 				.setAutoSelect(true)
 				.setIncreasedIndex(true)
 				.setAuthor("IGDB Search", null, "http://bit.ly/2NXGwMz")
-				.setDisplayFunction(data -> data.getString("name"));
+				.setDisplayFunction(data -> data.getString("name"))
+				.build();
 
 			paged.onSelect(select -> {
 				Document data = select.getSelected();
