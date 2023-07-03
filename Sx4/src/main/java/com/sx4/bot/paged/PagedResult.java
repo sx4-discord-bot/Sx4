@@ -550,10 +550,14 @@ public abstract class PagedResult<Type, Context> {
 			return (B) this;
 		}
 
-		public B setSelect(SelectType... select) {
-			this.select = select.length == 0 ? EnumSet.noneOf(SelectType.class) : EnumSet.copyOf(Arrays.asList(select));
+		public B setSelect(EnumSet<SelectType> select) {
+			this.select = select;
 
 			return (B) this;
+		}
+
+		public B setSelect(SelectType... select) {
+			return this.setSelect(select.length == 0 ? EnumSet.noneOf(SelectType.class) : EnumSet.copyOf(Arrays.asList(select)));
 		}
 
 		public B setAsyncFunction(BiConsumer<PagedResult<T, C>, Consumer<MessageCreateBuilder>> asyncFunction) {

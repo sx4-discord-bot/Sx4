@@ -5,7 +5,8 @@ public enum TriggerActionType {
 	REQUEST(0, 2),
 	SEND_MESSAGE(1, 1),
 	ADD_REACTION(2, 1),
-	EXECUTE_COMMAND(3, 1);
+	EXECUTE_COMMAND(3, 1),
+	SEND_PAGED_MESSAGE(4, 1);
 
 	public static final int MAX_ACTIONS = 3;
 

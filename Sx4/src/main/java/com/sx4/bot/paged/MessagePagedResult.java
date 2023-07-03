@@ -5,6 +5,7 @@ import com.sx4.bot.core.Sx4;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
@@ -58,11 +59,9 @@ public class MessagePagedResult<Type> extends PagedResult<Type, Message> {
 		this.execute(event.getMessage());
 	}
 
-	public void execute(Message message) {
-		MessageChannel channel = message.getChannel();
-
+	public void execute(MessageChannel channel, User owner) {
 		this.channelId = channel.getIdLong();
-		this.ownerId = message.getAuthor().getIdLong();
+		this.ownerId = owner.getIdLong();
 
 		if (channel instanceof GuildChannel guildChannel) {
 			Guild guild = guildChannel.getGuild();
@@ -86,6 +85,10 @@ public class MessagePagedResult<Type> extends PagedResult<Type, Message> {
 				this.bot.getPagedManager().setTimeout(this);
 			});
 		});
+	}
+
+	public void execute(Message message) {
+		this.execute(message.getChannel(), message.getAuthor());
 	}
 
 	public static class Builder<T> extends PagedResult.Builder<T, Message, Builder<T>, MessagePagedResult<T>> {

@@ -10,13 +10,17 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.core.Sx4CommandListener;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.trigger.*;
+import com.sx4.bot.formatter.output.Formatter;
 import com.sx4.bot.formatter.output.FormatterManager;
 import com.sx4.bot.formatter.output.JsonFormatter;
 import com.sx4.bot.formatter.output.StringFormatter;
 import com.sx4.bot.formatter.output.function.FormatterResponse;
 import com.sx4.bot.handlers.TriggerHandler;
 import com.sx4.bot.http.HttpCallback;
+import com.sx4.bot.paged.MessagePagedResult;
+import com.sx4.bot.paged.PagedResult.SelectType;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
@@ -57,6 +61,7 @@ public class TriggerUtility {
 				case SEND_MESSAGE -> new SendMessageTriggerAction(manager, actionData, channel);
 				case ADD_REACTION -> new AddReactionTriggerAction(manager, actionData, message);
 				case EXECUTE_COMMAND -> new ExecuteCommandTriggerAction(manager, actionData, (Sx4CommandListener) bot.getCommandListener(), message);
+				case SEND_PAGED_MESSAGE -> new SendPagedMessageTriggerAction(bot, manager, actionData, channel, message.getAuthor());
 			};
 
 			if (actionData.containsKey("order")) {
@@ -124,6 +129,67 @@ public class TriggerUtility {
 
 		return messageChannel.sendMessage(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(action.get("response", Document.class), true).build())).setAllowedMentions(EnumSet.allOf(Message.MentionType.class)).submit()
 			.thenAccept(message -> manager.addVariable(action.get("variable", "message"), message));
+	}
+
+	public static CompletableFuture<Void> sendPagedMessage(Sx4 bot, FormatterManager manager, Document action, GuildMessageChannel channel, User owner) {
+		String channelId = action.getString("channelId");
+		GuildMessageChannel messageChannel = channelId == null ? channel : channel.getGuild().getChannelById(GuildMessageChannel.class, channelId);
+		if (messageChannel == null) {
+			return CompletableFuture.failedFuture(new IllegalArgumentException("`channelId` supplied is not a valid channel"));
+		}
+
+		Object listData = action.get("list");
+		if (!(listData instanceof List || listData instanceof String)) {
+			return CompletableFuture.failedFuture(new IllegalArgumentException("`list` field supplied is not a list"));
+		}
+
+		Object listObject = listData instanceof List ? listData : Formatter.getValue((String) listData, manager);
+		if (!(listObject instanceof List list)) {
+			return CompletableFuture.failedFuture(new IllegalArgumentException("`list` field didn't format to a list"));
+		}
+
+		boolean indexed = action.getBoolean("indexed", true);
+		boolean increasedIndex = action.getBoolean("increasedIndex", true);
+		String display = action.getString("display");
+		Document selectData = action.get("select", Document.class);
+
+		EnumSet<SelectType> types = EnumSet.noneOf(SelectType.class);
+		if (selectData != null) {
+			if (indexed || increasedIndex) {
+				types.add(SelectType.INDEX);
+			}
+
+			types.add(SelectType.OBJECT);
+		}
+
+		MessagePagedResult<?> paged = new MessagePagedResult.Builder<Object>(bot, list)
+			.setIndexed(action.getBoolean("indexed", true))
+			.setIncreasedIndex(action.getBoolean("increasedIndex", false))
+			.setPerPage(action.getInteger("perPage", 10))
+			.setSelect(types)
+			.setDisplayFunction(object -> {
+				if (display == null) {
+					return object.toString();
+				}
+
+				manager.addVariable("this", object);
+				String value = new StringFormatter(display, manager).parse();
+				manager.removeVariable("this");
+
+				return value;
+			}).build();
+
+		paged.onSelect(select -> {
+			manager.addVariable("this", select.getSelected());
+			Document message = new JsonFormatter(selectData, manager).parse();
+			manager.removeVariable("this");
+
+			messageChannel.sendMessage(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(message, true).build())).queue();
+		});
+
+		paged.execute(messageChannel, owner);
+
+		return CompletableFuture.completedFuture(null);
 	}
 
 	public static CompletableFuture<Void> addReaction(FormatterManager manager, Document oldAction, Message message) {
@@ -248,6 +314,9 @@ public class TriggerUtility {
 			}
 
 			MessageUtility.removeFields((Document) response);
+			if (!MessageUtility.isValid((Document) response, false)) {
+				throw new IllegalArgumentException("`response` field was not valid message json");
+			}
 
 			Object channelId = data.get("channelId");
 			if (channelId instanceof Long) {
@@ -276,7 +345,6 @@ public class TriggerUtility {
 					action.append("emote", new Document("name", emoji.getName()));
 				}
 			} else if (emote instanceof Document emoteData) {
-
 				Object name = emoteData.get("name"), emoteId = emoteData.get("id");
 				if (name instanceof String) {
 					action.append("emote", new Document("name", name));
@@ -344,6 +412,76 @@ public class TriggerUtility {
 
 			if (arguments != null) {
 				action.append("arguments", arguments);
+			}
+		} else if (type == TriggerActionType.SEND_PAGED_MESSAGE) {
+			Object list = data.get("list");
+			if (!(list instanceof List || list instanceof String)) {
+				throw new IllegalArgumentException("`list` field has to be a list or a formatter converting to a list");
+			}
+
+			action.append("list", list);
+
+			Object select = data.get("select");
+			if (select != null && !(select instanceof Document)) {
+				throw new IllegalArgumentException("`select` field has to be json");
+			}
+
+			if (select != null) {
+				MessageUtility.removeFields((Document) select);
+				if (!MessageUtility.isValid((Document) select, false)) {
+					throw new IllegalArgumentException("`response` field was not valid message json");
+				}
+
+				action.append("select", select);
+			}
+
+			Object display = data.get("display");
+			if (display != null && !(display instanceof String)) {
+				throw new IllegalArgumentException("`display` field has to be a boolean");
+			}
+
+			if (display != null) {
+				action.append("display", display);
+			}
+
+			Object indexed = data.get("indexed");
+			if (indexed != null && !(indexed instanceof Boolean)) {
+				throw new IllegalArgumentException("`indexed` field has to be a boolean");
+			}
+
+			if (indexed != null) {
+				action.append("indexed", indexed);
+			}
+
+			Object increasedIndex = data.get("increasedIndex");
+			if (increasedIndex != null && !(increasedIndex instanceof Boolean)) {
+				throw new IllegalArgumentException("`increasedIndex` field has to be a boolean");
+			}
+
+			if (increasedIndex != null) {
+				action.append("increasedIndex", increasedIndex);
+			}
+
+			Object perPage = data.get("perPage");
+			if (perPage != null && !(perPage instanceof Integer)) {
+				throw new IllegalArgumentException("`perPage` field has to be an integer");
+			}
+
+			if (perPage != null) {
+				action.append("perPage", perPage);
+			}
+
+			Object channelId = data.get("channelId");
+			if (channelId instanceof Long) {
+				channelId = Long.toString((long) channelId);
+			}
+
+			if (channelId != null && !(channelId instanceof String)) {
+				throw new IllegalArgumentException("`channelId` field has to be a string");
+			}
+
+			if (channelId != null) {
+				action.append("channelId", channelId);
 			}
 		} else {
 			throw new IllegalArgumentException("That action type is not supported yet");

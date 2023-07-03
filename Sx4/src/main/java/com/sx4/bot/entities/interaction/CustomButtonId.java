@@ -84,9 +84,7 @@ public class CustomButtonId extends CustomInteractionId {
 		private long expiry;
 
 		public Builder setType(ButtonType type) {
-			this.setType(type.getId());
-
-			return this;
+			return this.setType(type.getId());
 		}
 
 		public Builder setOwners(long... owners)  {
@@ -111,10 +109,6 @@ public class CustomButtonId extends CustomInteractionId {
 		
 		public CustomButtonId build() {
 			return new CustomButtonId(this.type, this.owners == null ? new long[0] : this.owners, this.expiry, this.arguments == null ? new String[0] : this.arguments);
-		}
-		
-		public String getId() {
-			return this.build().getId();
 		}
 
 	}

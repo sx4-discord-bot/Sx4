@@ -149,7 +149,7 @@ public abstract class Formatter<Type> {
 		return functionArguments;
 	}
 
-	private static Object getValue(String formatter, FormatterManager manager) {
+	public static Object getValue(String formatter, FormatterManager manager) {
 		Class<?> type = Void.class;
 		Object value = null;
 
