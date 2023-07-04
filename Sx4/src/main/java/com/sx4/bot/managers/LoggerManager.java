@@ -120,6 +120,12 @@ public class LoggerManager {
         return RestConfig.DEFAULT_BASE_URL + "webhooks/" + id + "/" + token;
     }
 
+    private void clear() {
+        this.queue.clear();
+        this.queued = false;
+        this.webhook = null;
+    }
+
     private void disableLogger(long channelId) {
         Bson update = Updates.combine(
             Updates.set("enabled", false),
@@ -127,12 +133,8 @@ public class LoggerManager {
             Updates.unset("webhook.token")
         );
 
-        this.bot.getMongo().updateLogger(Filters.eq("channelId", channelId), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
-            ExceptionUtility.sendErrorMessage(databaseException);
-            this.queue.clear();
-            this.queued = false;
-            this.webhook = null;
-        });
+        this.bot.getMongo().updateLogger(Filters.eq("channelId", channelId), update, new UpdateOptions()).whenComplete(MongoDatabase.exceptionally());
+        this.clear();
     }
 
     private void createWebhook(WebhookChannel channel, List<Request> requests) {
@@ -144,12 +146,8 @@ public class LoggerManager {
                     this.disableLogger(channel.getIdLong());
                     return;
                 } else if (errorResponse == ErrorResponse.UNKNOWN_CHANNEL) {
-                    this.bot.getMongo().deleteLogger(Filters.eq("channelId", channel.getIdLong())).whenComplete((result, databaseException) -> {
-                        ExceptionUtility.sendErrorMessage(databaseException);
-                        this.queue.clear();
-                        this.queued = false;
-                        this.webhook = null;
-                    });
+                    this.bot.getMongo().deleteLogger(Filters.eq("channelId", channel.getIdLong())).whenComplete(MongoDatabase.exceptionally());
+                    this.clear();
 
                     return;
                 }
@@ -200,11 +198,8 @@ public class LoggerManager {
             long channelId = request.getChannelId();
             GuildMessageChannelUnion channel = request.getChannel(guild);
             if (channel == null) {
-                this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete((result, exception) -> {
-                    ExceptionUtility.sendErrorMessage(exception);
-                    this.queue.clear();
-                    this.queued = false;
-                });
+                this.bot.getMongo().deleteLogger(Filters.eq("channelId", channelId)).whenComplete(MongoDatabase.exceptionally());
+                this.clear();
 
                 return;
             }
