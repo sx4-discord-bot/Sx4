@@ -766,7 +766,7 @@ public class TriggerCommand extends Sx4Command {
 		@CommandId(520)
 		@Examples({"trigger variable add 600968f92850ef72c9af8756 token MY_SECRET_TOKEN", "trigger variable add 600968f92850ef72c9af8756 bot_token Bot DISCORD_BOT_TOKEN"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-		public void add(Sx4CommandEvent event, @Argument(value="trigger id") ObjectId id, @Argument(value="key") @Limit(max=20) String key, @Argument(value="value") String value) {
+		public void add(Sx4CommandEvent event, @Argument(value="trigger id") ObjectId id, @Argument(value="key") @Limit(max=20) String key, @Argument(value="value", endless=true) String value) {
 			Document variable = new Document("key", key).append("value", value);
 
 			List<Bson> update = List.of(Operators.set("variables", Operators.cond(Operators.and(Operators.exists("$variables"), Operators.gte(Operators.size("$variables"), 5)), "$variables", Operators.concatArrays(Operators.ifNull("$variables", Collections.EMPTY_LIST), List.of(variable)))));

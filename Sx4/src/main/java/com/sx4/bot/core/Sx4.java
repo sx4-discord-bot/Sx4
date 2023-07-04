@@ -325,10 +325,13 @@ public class Sx4 {
 			.addVariable("id", "Gets the id of a message", Message.class, Long.class, Message::getIdLong)
 			.addVariable("content", "Gets the content of a message", Message.class, String.class, Message::getContentRaw)
 			.addVariable("channel", "Gets the channel the message is in", Message.class, MessageChannel.class, Message::getChannel)
+			.addVariable("length", "Gets the length of a string", String.class, Integer.class, String::length)
+			.addVariable("isNumber", "Gets whether or not this string is a number", String.class, Boolean.class, NumberUtility::isNumber)
 			.addVariable("urlEncode", "Encodes a string to a URL standard", String.class, String.class, string -> URLEncoder.encode(string, StandardCharsets.UTF_8))
 			.addVariable("status", "Gets the status code of the response", FormatterResponse.class, Integer.class, FormatterResponse::getStatus)
 			.addVariable("raw", "Gets the raw response body", FormatterResponse.class, String.class, FormatterResponse::getRaw)
 			.addVariable("json", "Gets the response body as json", FormatterResponse.class, Document.class, FormatterResponse::asJson)
+			.addVariable("array", "Gets the response body as a json array", FormatterResponse.class, Collection.class, FormatterResponse::asArray)
 			.addVariable("icon", "Get the icon url of the free game platform", FreeGameType.class, String.class, FreeGameType::getIconUrl)
 			.addVariable("name", "Get the name of the free game platform", FreeGameType.class, String.class, FreeGameType::getName)
 			.addVariable("platform", "Get the platform of the free game", FreeGame.class, FreeGameType.class, FreeGame::getType)
@@ -410,10 +413,8 @@ public class Sx4 {
 			.addParser(Boolean.class, text -> {
 				if (text.equals("true")) {
 					return true;
-				} else if (text.equals("false")) {
-					return false;
 				} else {
-					return null;
+					return false;
 				}
 			}).addParser(Temporal.class, text -> {
 				try {

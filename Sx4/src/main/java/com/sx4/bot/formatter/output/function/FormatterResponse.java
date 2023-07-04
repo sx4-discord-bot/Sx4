@@ -4,6 +4,7 @@ import okhttp3.Response;
 import org.bson.Document;
 
 import java.io.IOException;
+import java.util.List;
 
 public class FormatterResponse {
 
@@ -11,6 +12,7 @@ public class FormatterResponse {
 
 	private final String body;
 	private Document json;
+	private List<Object> array;
 
 	public FormatterResponse(Response response) throws IOException {
 		this.status = response.code();
@@ -23,6 +25,15 @@ public class FormatterResponse {
 
 	public String getRaw() {
 		return this.body;
+	}
+
+	public synchronized List<Object> asArray() {
+		String body = "{\"a\":" + this.body + "}";
+		if (this.array == null) {
+			return this.array = Document.parse(body).getList("a", Object.class);
+		}
+
+		return this.array;
 	}
 
 	public synchronized Document asJson() {

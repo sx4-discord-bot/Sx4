@@ -65,9 +65,9 @@ public class TriggerUtility {
 			};
 
 			if (actionData.containsKey("order")) {
-				orderedFuture = orderedFuture.thenCompose($ -> action.execute());
+				orderedFuture = orderedFuture.thenCompose($ -> action.run());
 			} else {
-				futures.add(action.execute());
+				futures.add(action.run());
 			}
 		}
 
@@ -252,6 +252,11 @@ public class TriggerUtility {
 		Object order = data.get("order");
 		if (order instanceof Integer && (int) order >= 0) {
 			action.append("order", order);
+		}
+
+		Object run = data.get("run");
+		if (run instanceof String) {
+			action.append("run", run);
 		}
 
 		if (type == TriggerActionType.REQUEST) {
