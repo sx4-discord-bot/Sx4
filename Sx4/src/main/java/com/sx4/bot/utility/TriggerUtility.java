@@ -139,10 +139,6 @@ public class TriggerUtility {
 		}
 
 		Object listData = action.get("list");
-		if (!(listData instanceof List || listData instanceof String)) {
-			return CompletableFuture.failedFuture(new IllegalArgumentException("`list` field supplied is not a list"));
-		}
-
 		Object listObject = listData instanceof List ? listData : Formatter.getValue((String) listData, manager);
 		if (!(listObject instanceof List list)) {
 			return CompletableFuture.failedFuture(new IllegalArgumentException("`list` field didn't format to a list"));
@@ -163,8 +159,9 @@ public class TriggerUtility {
 		}
 
 		MessagePagedResult<?> paged = new MessagePagedResult.Builder<Object>(bot, list)
-			.setIndexed(action.getBoolean("indexed", true))
-			.setIncreasedIndex(action.getBoolean("increasedIndex", false))
+			.setIndexed(indexed)
+			.setIncreasedIndex(increasedIndex)
+			.setAutoSelect(action.getBoolean("autoSelect", false))
 			.setPerPage(action.getInteger("perPage", 10))
 			.setSelect(types)
 			.setDisplayFunction(object -> {
@@ -442,6 +439,15 @@ public class TriggerUtility {
 
 			if (display != null) {
 				action.append("display", display);
+			}
+
+			Object autoSelect = data.get("autoSelect");
+			if (autoSelect != null && !(autoSelect instanceof Boolean)) {
+				throw new IllegalArgumentException("`autoSelect` field has to be a boolean");
+			}
+
+			if (autoSelect != null) {
+				action.append("autoSelect", autoSelect);
 			}
 
 			Object indexed = data.get("indexed");
