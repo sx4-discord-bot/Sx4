@@ -167,7 +167,9 @@ public class LoggerManager {
                 Updates.set("webhook.token", webhook.getToken())
             );
 
-            this.bot.getMongo().updateManyLoggers(Filters.eq("webhook.channelId", channel.getWebhookChannel().getIdLong()), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
+            long webhookChannelId = channel.getWebhookChannel().getIdLong();
+
+            this.bot.getMongo().updateManyLoggers(Filters.or(Filters.eq("channelId", webhookChannelId), Filters.eq("webhook.channelId", webhookChannelId)), update, new UpdateOptions()).whenComplete((result, databaseException) -> {
                 ExceptionUtility.sendErrorMessage(databaseException);
 
                 requests.forEach(failedRequest -> this.queue.addFirst(failedRequest.incrementAttempts()));
