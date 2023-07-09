@@ -1,13 +1,13 @@
 package com.sx4.bot.core;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 import com.jockie.bot.core.category.ICategory;
 import com.jockie.bot.core.category.impl.CategoryImpl;
 import com.jockie.bot.core.command.ICommand;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class Sx4Category extends CategoryImpl {
 	
@@ -50,6 +50,10 @@ public class Sx4Category extends CategoryImpl {
 			.stream()
 			.filter(command -> !(!includeDeveloper && command.isDeveloperCommand()))
 			.collect(Collectors.toUnmodifiableSet());
+	}
+
+	public int hashCode() {
+		return this.getName().hashCode();
 	}
 	
 }

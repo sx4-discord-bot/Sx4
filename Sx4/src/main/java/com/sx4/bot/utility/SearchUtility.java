@@ -587,24 +587,16 @@ public class SearchUtility {
 			.orElse(null);
 	}
 	
-	public static List<Sx4Category> getModules(String query) {
-		List<Map.Entry<Sx4Category, Integer>> matches = new ArrayList<>();
+	public static QueryMatches<Sx4Category> getModules(String query) {
+		QueryMatches<Sx4Category> matches = new QueryMatches<>(query, 50);
 		for (Sx4Category category : ModuleCategory.ALL_ARRAY) {
-			int score = StringUtility.getScore(category.getName(), query);
+			matches.addValue(category, Sx4Category::getName);
 			for (String alias : category.getAliases()) {
-				score = Math.max(score, StringUtility.getScore(alias, query));
-			}
-
-			if (score == 100) {
-				return List.of(category);
-			}
-
-			if (score > 25) {
-				matches.add(Map.entry(category, score));
+				matches.addValue(category, alias);
 			}
 		}
 
-		return matches.stream().sorted(Collections.reverseOrder(Comparator.comparingInt(Map.Entry::getValue))).map(Map.Entry::getKey).collect(Collectors.toList());
+		return matches;
 	}
 	
 	public static Sx4Command getCommand(CommandListener commandListener, String query) {
@@ -612,26 +604,25 @@ public class SearchUtility {
 	}
 
 	public static Sx4Command getCommand(CommandListener commandListener, String query, boolean includeDeveloper) {
-		List<Sx4Command> commands = SearchUtility.getCommands(commandListener, query, includeDeveloper);
+		List<Sx4Command> commands = SearchUtility.getCommands(commandListener, query, includeDeveloper).toList();
 		return commands.isEmpty() ? null : commands.get(0);
 	}
 	
-	public static List<Sx4Command> getCommands(CommandListener commandListener, String query) {
+	public static QueryMatches<Sx4Command> getCommands(CommandListener commandListener, String query) {
 		return SearchUtility.getCommands(commandListener, query, true);
 	}
 
-	public static List<Sx4Command> getCommands(CommandListener commandListener, String query, boolean includeDeveloper) {
+	public static QueryMatches<Sx4Command> getCommands(CommandListener commandListener, String query, boolean includeDeveloper) {
 		query = query.trim();
 		
-		List<Map.Entry<Sx4Command, Integer>> matches = new ArrayList<>();
-		boolean fullMatch = false;
+		QueryMatches<Sx4Command> matches = new QueryMatches<>(query, 50);
 		for (ICommand commandObject : commandListener.getAllCommands(includeDeveloper, false)) {
 			Sx4Command command = (Sx4Command) (commandObject instanceof DummyCommand ? ((DummyCommand) commandObject).getActualCommand() : commandObject);
 
-			int score = StringUtility.getScore(command.getCommandTrigger(), query);
+			matches.addValue(command, Sx4Command::getCommandTrigger);
 
 			for (String redirect : command.getRedirects()) {
-				score = Math.max(score, StringUtility.getScore(redirect, query));
+				matches.addValue(command, redirect);
 			}
 
 			ICommand parent = command;
@@ -651,20 +642,11 @@ public class SearchUtility {
 			}
 
 			for (String commandAlias : parentAliases) {
-				score = Math.max(score, StringUtility.getScore(commandAlias, query));
-			}
-
-			if (score == 100) {
-				fullMatch = true;
-			}
-
-			if (score > 25) {
-				matches.add(Map.entry(command, score));
+				matches.addValue(command, commandAlias);
 			}
 		}
 
-		boolean finalFullMatch = fullMatch;
-		return matches.stream().filter(entry -> !finalFullMatch || entry.getValue() == 100).sorted(Collections.reverseOrder(Comparator.comparingInt(Map.Entry::getValue))).map(Map.Entry::getKey).collect(Collectors.toList());
+		return matches;
 	}
 
 	public static Locale getLocale(String query) {

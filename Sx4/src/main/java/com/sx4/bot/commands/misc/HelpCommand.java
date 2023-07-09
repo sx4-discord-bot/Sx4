@@ -8,6 +8,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult.SelectType;
 import com.sx4.bot.utility.HelpUtility;
+import com.sx4.bot.utility.QueryMatches;
 import com.sx4.bot.utility.SearchUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
@@ -74,11 +75,11 @@ public class HelpCommand extends Sx4Command {
 			
 			paged.execute(event);
 		} else {
-			List<Sx4Category> categories = SearchUtility.getModules(commandName);
-			List<Sx4Command> commands = SearchUtility.getCommands(event.getCommandListener(), commandName, event.isAuthorDeveloper());
+			QueryMatches<Sx4Category> categories = SearchUtility.getModules(commandName);
+			QueryMatches<Sx4Command> commands = SearchUtility.getCommands(event.getCommandListener(), commandName, event.isAuthorDeveloper());
 
-			if (!commands.isEmpty()) {
-				MessagePagedResult<Sx4Command> paged = new MessagePagedResult.Builder<>(event.getBot(), commands)
+			if (!commands.isEmpty() && categories.getMaxScore() < commands.getMaxScore()) {
+				MessagePagedResult<Sx4Command> paged = new MessagePagedResult.Builder<>(event.getBot(), commands.toList())
 					.setAuthor(commandName, null, event.getAuthor().getEffectiveAvatarUrl())
 					.setAutoSelect(true)
 					.setSelect(SelectType.OBJECT)
@@ -91,7 +92,7 @@ public class HelpCommand extends Sx4Command {
 
 				paged.execute(event);
 			} else if (!categories.isEmpty()) {
-				MessagePagedResult<Sx4Category> paged = new MessagePagedResult.Builder<>(event.getBot(), categories)
+				MessagePagedResult<Sx4Category> paged = new MessagePagedResult.Builder<>(event.getBot(), categories.toList())
 					.setAuthor(commandName, null, event.getAuthor().getEffectiveAvatarUrl())
 					.setAutoSelect(true)
 					.setSelect(SelectType.OBJECT)
@@ -116,7 +117,7 @@ public class HelpCommand extends Sx4Command {
 
 					categoryPaged.execute(event);
 				});
-				
+
 				paged.execute(event);
 			} else {
 				event.replyFailure("I could not find that command/module").queue();

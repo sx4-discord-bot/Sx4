@@ -265,4 +265,9 @@ public class Sx4Command extends CommandImpl {
 			}
 		}
 	}
+
+	public int hashCode() {
+		return this.id;
+	}
+
 }
