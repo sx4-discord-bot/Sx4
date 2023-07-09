@@ -220,7 +220,9 @@ public class YouTubeManager implements WebhookManager {
 				Updates.set("webhook.token", webhook.getToken())
 			);
 
-			return this.bot.getMongo().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update)
+			long webhookChannelId = channel.getWebhookChannel().getIdLong();
+
+			return this.bot.getMongo().updateManyYouTubeNotifications(Filters.or(Filters.eq("channelId", webhookChannelId), Filters.eq("webhook.channelId", webhookChannelId)), update)
 				.thenCompose(result -> webhookClient.send(message))
 				.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
 		}).exceptionallyCompose(exception -> {
