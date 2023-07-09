@@ -32,7 +32,6 @@ import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.channel.attribute.IWebhookContainer;
-import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import okhttp3.MultipartBody;
@@ -213,14 +212,17 @@ public class YouTubeNotificationCommand extends Sx4Command {
 				return;
 			}
 
+			Document webhook = data.get("webhook", Document.class);
+
 			long channelId = data.getLong("channelId");
+			long webhookChannelId = webhook == null ? channelId : webhook.get("channelId", channelId);
+
 			event.getBot().getYouTubeManager().removeWebhook(channelId);
 
-			GuildMessageChannelUnion channel = event.getGuild().getChannelById(GuildMessageChannelUnion.class, channelId);
+			IWebhookContainer channel = event.getGuild().getChannelById(IWebhookContainer.class, webhookChannelId);
 
-			Document webhook = data.get("webhook", Document.class);
 			if (webhook != null && channel != null) {
-				((IWebhookContainer) channel).deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
+				channel.deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 			
 			event.replySuccess("You will no longer receive notifications in <#" + channelId + "> for that user").queue();

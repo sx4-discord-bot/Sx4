@@ -198,7 +198,7 @@ public class FreeGamesCommand extends Sx4Command {
 
 			Document webhook = data.get("webhook", Document.class);
 			if (webhook != null) {
-				channel.deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
+				channel.getWebhookChannel().deleteWebhookById(Long.toString(webhook.getLong("id"))).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_WEBHOOK));
 			}
 
 			event.replySuccess("Free game notifications will no longer be sent in " + channel.getAsMention()).queue();
