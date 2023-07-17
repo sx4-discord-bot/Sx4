@@ -147,10 +147,10 @@ public class TriggerUtility {
 		boolean indexed = action.getBoolean("indexed", true);
 		boolean increasedIndex = action.getBoolean("increasedIndex", true);
 		String display = action.getString("display");
-		Document selectData = action.get("select", Document.class);
+		boolean select = action.getBoolean("select", false);
 
 		EnumSet<SelectType> types = EnumSet.noneOf(SelectType.class);
-		if (selectData != null) {
+		if (select) {
 			if (indexed || increasedIndex) {
 				types.add(SelectType.INDEX);
 			}
@@ -159,6 +159,7 @@ public class TriggerUtility {
 		}
 
 		MessagePagedResult<?> paged = new MessagePagedResult.Builder<Object>(bot, list)
+			.setTimeout(300)
 			.setIndexed(indexed)
 			.setIncreasedIndex(increasedIndex)
 			.setAutoSelect(action.getBoolean("autoSelect", false))
@@ -176,15 +177,19 @@ public class TriggerUtility {
 				return value;
 			}).build();
 
-		paged.onSelect(select -> {
-			manager.addVariable("this", select.getSelected());
-			Document message = new JsonFormatter(selectData, manager).parse();
-			manager.removeVariable("this");
-
-			messageChannel.sendMessage(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(message, true).build())).queue();
-		});
-
 		paged.execute(messageChannel, owner);
+
+		if (select) {
+			CompletableFuture<Void> future = new CompletableFuture<>();
+			paged.onSelect(selected -> {
+				manager.addVariable("selected", selected.getSelected());
+				future.complete(null);
+			});
+
+			paged.onTimeout(() -> future.complete(null));
+
+			return future;
+		}
 
 		return CompletableFuture.completedFuture(null);
 	}
@@ -424,16 +429,11 @@ public class TriggerUtility {
 			action.append("list", list);
 
 			Object select = data.get("select");
-			if (select != null && !(select instanceof Document)) {
-				throw new IllegalArgumentException("`select` field has to be json");
+			if (select != null && !(select instanceof Boolean)) {
+				throw new IllegalArgumentException("`select` field has to be a boolean");
 			}
 
 			if (select != null) {
-				MessageUtility.removeFields((Document) select);
-				if (!MessageUtility.isValid((Document) select, false)) {
-					throw new IllegalArgumentException("`response` field was not valid message json");
-				}
-
 				action.append("select", select);
 			}
 
