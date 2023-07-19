@@ -322,6 +322,7 @@ public class Sx4 {
 			.addVariable("name", "Gets the name of a twitch streamer", TwitchStreamer.class, String.class, TwitchStreamer::getName)
 			.addVariable("url", "Gets the url of a twitch streamer", TwitchStreamer.class, String.class, TwitchStreamer::getUrl)
 			.addVariable("not", "Inverts a boolean value", Boolean.class, Boolean.class, bool -> !bool)
+			.addVariable("negate", "Inverts a boolean value", Boolean.class, Boolean.class, bool -> !bool)
 			.addVariable("id", "Gets the id of a message", Message.class, Long.class, Message::getIdLong)
 			.addVariable("content", "Gets the content of a message", Message.class, String.class, Message::getContentRaw)
 			.addVariable("channel", "Gets the channel the message is in", Message.class, MessageChannel.class, Message::getChannel)
@@ -413,10 +414,13 @@ public class Sx4 {
 			.addParser(Boolean.class, text -> {
 				if (text.equals("true")) {
 					return true;
-				} else {
+				} else if (text.equals("false")) {
 					return false;
+				} else {
+					return null;
 				}
-			}).addParser(Temporal.class, text -> {
+			})
+			.addParser(Temporal.class, text -> {
 				try {
 					return OffsetDateTime.parse(text);
 				} catch (DateTimeParseException e) {
