@@ -453,7 +453,7 @@ public class FreeGameManager implements WebhookManager {
 			for (Element result : results.children()) {
 				Element discount = result.getElementsByClass("col search_discount responsive_secondrow").first();
 				// Just in case steam search is inaccurate
-				if (!discount.text().equals("-100%")) {
+				if (discount == null || !discount.text().equals("-100%")) {
 					continue;
 				}
 
