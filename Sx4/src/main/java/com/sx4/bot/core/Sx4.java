@@ -410,7 +410,6 @@ public class Sx4 {
 			.addVariable("id", "Gets the id of the YouTube channel", YouTubeChannel.class, String.class, YouTubeChannel::getId)
 			.addVariable("url", "Gets the url of the YouTube channel", YouTubeChannel.class, String.class, YouTubeChannel::getUrl)
 			.addVariable("name", "Gets the name of the YouTube channel", YouTubeChannel.class, String.class, YouTubeChannel::getName)
-			.addParser(String.class, Function.identity())
 			.addParser(Boolean.class, text -> {
 				if (text.equals("true")) {
 					return true;
@@ -419,8 +418,7 @@ public class Sx4 {
 				} else {
 					return null;
 				}
-			})
-			.addParser(Temporal.class, text -> {
+			}).addParser(Temporal.class, text -> {
 				try {
 					return OffsetDateTime.parse(text);
 				} catch (DateTimeParseException e) {
@@ -456,7 +454,7 @@ public class Sx4 {
 				} catch (NumberFormatException e) {
 					return null;
 				}
-			});
+			}).addParser(String.class, Function.identity());
 
 		formatterManager.addParser(Object.class, text -> {
 			Map<Class<?>, FormatterParser<?>> parsers = formatterManager.getParsers();

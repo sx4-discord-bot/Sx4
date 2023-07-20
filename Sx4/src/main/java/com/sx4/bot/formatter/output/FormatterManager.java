@@ -32,7 +32,7 @@ public class FormatterManager {
 	public FormatterManager() {
 		this.functions = new HashMap<>();
 		this.variables = new HashMap<>();
-		this.parsers = new HashMap<>();
+		this.parsers = new LinkedHashMap<>();
 		this.handleInheritance = new LinkedHashSet<>();
 	}
 
