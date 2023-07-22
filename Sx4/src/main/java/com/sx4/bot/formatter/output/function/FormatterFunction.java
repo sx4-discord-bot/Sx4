@@ -2,6 +2,7 @@ package com.sx4.bot.formatter.output.function;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,22 +11,21 @@ public class FormatterFunction<Type> {
 	private final Class<Type> type;
 	private final String name, description;
 	private final Method method;
-	private final boolean usePrevious;
+	private final FormatterArgument[] arguments;
 
-	public FormatterFunction(Class<Type> type, String name, String description, boolean usePrevious) {
+	public FormatterFunction(Class<Type> type, String name, String description) {
 		this.name = name;
 		this.type = type;
 		this.description = description;
-		this.usePrevious = usePrevious;
 
 		Method[] methods = this.getClass().getMethods();
 
 		for (Method method : methods) {
 			if (method.getName().equalsIgnoreCase("parse")) {
 				boolean optional = false, event = false;
-				Class<?>[] parameters = method.getParameterTypes();
+				Parameter[] parameters = method.getParameters();
 				for (int i = 0; i < parameters.length; i++) {
-					Class<?> clazz = parameters[i];
+					Class<?> clazz = parameters[i].getType();
 					if (clazz == FormatterEvent.class) {
 						if (i != 0) {
 							throw new IllegalArgumentException("FormatterEvent must be the first parameter in the method");
@@ -41,6 +41,12 @@ public class FormatterFunction<Type> {
 
 				if (event) {
 					this.method = method;
+
+					this.arguments = new FormatterArgument[parameters.length];
+					for (int i = 0; i < parameters.length; i++) {
+						this.arguments[i] = new FormatterArgument(parameters[i]);
+					}
+
 					return;
 				} else {
 					throw new IllegalArgumentException("parse method should have a FormatterEvent parameter");
@@ -51,16 +57,8 @@ public class FormatterFunction<Type> {
 		throw new IllegalStateException("FormatterFunction doesn't have a parse method");
 	}
 
-	public FormatterFunction(Class<Type> type, String name, String description) {
-		this(type, name, description, false);
-	}
-
 	public String getDescription() {
 		return this.description;
-	}
-
-	public boolean isUsePrevious() {
-		return this.usePrevious;
 	}
 
 	public Class<Type> getType() {
@@ -69,6 +67,10 @@ public class FormatterFunction<Type> {
 
 	public String getName() {
 		return this.name;
+	}
+
+	public FormatterArgument[] getArguments() {
+		return this.arguments;
 	}
 
 	public Method getMethod() {

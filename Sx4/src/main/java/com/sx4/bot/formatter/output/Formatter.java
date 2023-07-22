@@ -1,10 +1,6 @@
 package com.sx4.bot.formatter.output;
 
-import com.sx4.bot.formatter.output.function.FormatterEvent;
-import com.sx4.bot.formatter.output.function.FormatterFunction;
-import com.sx4.bot.formatter.output.function.FormatterParser;
-import com.sx4.bot.formatter.output.function.FormatterVariable;
-import com.sx4.bot.utility.ClassUtility;
+import com.sx4.bot.formatter.output.function.*;
 import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.entities.Guild;
@@ -16,9 +12,9 @@ import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
 
 import java.awt.*;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public abstract class Formatter<Type> {
@@ -105,7 +101,7 @@ public abstract class Formatter<Type> {
 		List<Object> functionArguments = new ArrayList<>();
 		functionArguments.add(new FormatterEvent<>(value, manager));
 
-		Parameter[] parameters = function.getMethod().getParameters();
+		FormatterArgument[] arguments = function.getArguments();
 		int nextIndex, lastIndex = -1, commaIndex = -1, index = 0;
 		do {
 			nextIndex = text.indexOf(',', commaIndex + 1);
@@ -115,31 +111,26 @@ public abstract class Formatter<Type> {
 			}
 
 			String argument;
-			if (++index == parameters.length - 1) {
+			if (++index == arguments.length - 1) {
 				argument = text.substring(lastIndex + 1);
 				nextIndex = -1;
 			} else {
 				argument = text.substring(lastIndex + 1, (lastIndex = nextIndex) == -1 ? text.length() : nextIndex);
 			}
 
-			Parameter parameter = parameters[index];
-			Class<?> clazz = parameter.getType();
-			boolean optional = clazz == Optional.class;
-			if (optional) {
-				clazz = (Class<?>) ClassUtility.getParameterTypes(parameter)[0];
-			}
+			FormatterArgument formatterArgument = arguments[index];
 
-			Object argumentValue = Formatter.toObject(argument, function.isUsePrevious() ? type : clazz, manager);
-			if (argumentValue == null) {
+			Object argumentValue = Formatter.toObject(argument, formatterArgument.isUsePrevious() ? type : formatterArgument.getType(), manager);
+			if (argumentValue == null && !formatterArgument.isAcceptNull()) {
 				return null;
 			}
 
-			functionArguments.add(optional ? Optional.of(argumentValue) : argumentValue);
+			functionArguments.add(formatterArgument.isOptional() ? Optional.ofNullable(argumentValue) : argumentValue);
 		} while (nextIndex != -1);
 
-		for (int i = functionArguments.size(); i < parameters.length; i++) {
-			Parameter parameter = parameters[i];
-			if (parameter.getType() == Optional.class) {
+		for (int i = functionArguments.size(); i < arguments.length; i++) {
+			FormatterArgument formatterArgument = arguments[i];
+			if (formatterArgument.isOptional()) {
 				functionArguments.add(Optional.empty());
 			} else {
 				return null;
@@ -176,9 +167,26 @@ public abstract class Formatter<Type> {
 			periodIndex = nextPeriodIndex;
 			if (endBracketIndex <= bracketIndex) {
 				FormatterVariable<?> variable = manager.getVariable(type, name);
-				if (variable == null && nextPeriodIndex == -1) {
-					return null;
-				} else if (variable == null) {
+				if (variable == null) {
+					if (value instanceof Map map) {
+						value = map.get(name);
+					} else if (value instanceof List list) {
+						int index;
+						try {
+							index = Integer.parseUnsignedInt(name);
+						} catch (NumberFormatException e) {
+							continue;
+						}
+
+						if (index >= list.size()) {
+							continue;
+						}
+
+						value = list.get(index);
+					} else if (nextPeriodIndex == -1) {
+						return null;
+					}
+
 					continue;
 				}
 
