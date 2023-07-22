@@ -14,7 +14,6 @@ import java.awt.*;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 public abstract class Formatter<Type> {
@@ -102,7 +101,7 @@ public abstract class Formatter<Type> {
 		functionArguments.add(new FormatterEvent<>(value, manager));
 
 		FormatterArgument[] arguments = function.getArguments();
-		int nextIndex, lastIndex = -1, commaIndex = -1, index = 0;
+		int nextIndex, lastIndex = -1, commaIndex = -1, index = -1;
 		do {
 			nextIndex = text.indexOf(',', commaIndex + 1);
 			if (nextIndex != -1 && (lastIndex >= nextIndex || Formatter.isEscaped(text, nextIndex) || StringUtility.isNotEqual(text.substring(lastIndex + 1, nextIndex), '{', '}'))) {
@@ -128,7 +127,7 @@ public abstract class Formatter<Type> {
 			functionArguments.add(formatterArgument.isOptional() ? Optional.ofNullable(argumentValue) : argumentValue);
 		} while (nextIndex != -1);
 
-		for (int i = functionArguments.size(); i < arguments.length; i++) {
+		for (int i = functionArguments.size() - 1; i < arguments.length; i++) {
 			FormatterArgument formatterArgument = arguments[i];
 			if (formatterArgument.isOptional()) {
 				functionArguments.add(Optional.empty());
@@ -168,29 +167,25 @@ public abstract class Formatter<Type> {
 			if (endBracketIndex <= bracketIndex) {
 				FormatterVariable<?> variable = manager.getVariable(type, name);
 				if (variable == null) {
-					if (value instanceof Map map) {
-						value = map.get(name);
-					} else if (value instanceof List list) {
-						int index;
+					FormatterFunction<?> function = manager.getFunction(type, "get");
+					if (function != null) {
 						try {
-							index = Integer.parseUnsignedInt(name);
-						} catch (NumberFormatException e) {
-							continue;
-						}
+							List<Object> arguments = Formatter.getFunctionArguments(function, name, value, type, manager);
+							if (arguments == null) {
+								continue;
+							}
 
-						if (index >= list.size()) {
-							continue;
+							value = function.parse(arguments);
+						} catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException exception) {
+							exception.printStackTrace();
+							value = null;
 						}
-
-						value = list.get(index);
 					} else if (nextPeriodIndex == -1) {
 						return null;
 					}
-
-					continue;
+				} else {
+					value = variable.parse(value);
 				}
-
-				value = variable.parse(value);
 			} else {
 				String argument = name.substring(bracketIndex + 1, endBracketIndex);
 				String functionName = name.substring(0, bracketIndex);

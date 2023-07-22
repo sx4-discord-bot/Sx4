@@ -42,9 +42,9 @@ public class FormatterFunction<Type> {
 				if (event) {
 					this.method = method;
 
-					this.arguments = new FormatterArgument[parameters.length];
-					for (int i = 0; i < parameters.length; i++) {
-						this.arguments[i] = new FormatterArgument(parameters[i]);
+					this.arguments = new FormatterArgument[parameters.length - 1];
+					for (int i = 1; i < parameters.length; i++) {
+						this.arguments[i - 1] = new FormatterArgument(parameters[i]);
 					}
 
 					return;
@@ -77,8 +77,12 @@ public class FormatterFunction<Type> {
 		return this.method;
 	}
 
+	public Object parse(Object... arguments) throws InvocationTargetException, IllegalAccessException {
+		return this.method.invoke(this, arguments);
+	}
+
 	public Object parse(List<Object> arguments) throws InvocationTargetException, IllegalAccessException {
-		return this.method.invoke(this, arguments.toArray());
+		return this.parse(arguments.toArray());
 	}
 
 }
