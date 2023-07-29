@@ -451,12 +451,6 @@ public class FreeGameManager implements WebhookManager {
 
 			List<CompletableFuture<SteamFreeGame>> futures = new ArrayList<>();
 			for (Element result : results.children()) {
-				Element discount = result.getElementsByClass("col search_discount responsive_secondrow").first();
-				// Just in case steam search is inaccurate
-				if (discount == null || !discount.text().equals("-100%")) {
-					continue;
-				}
-
 				int id = Integer.parseInt(result.attr("data-ds-appid"));
 
 				Request gameRequest = new Request.Builder()
@@ -469,6 +463,12 @@ public class FreeGameManager implements WebhookManager {
 				this.bot.getHttpClient().newCall(gameRequest).enqueue((HttpCallback) gameResponse -> {
 					org.jsoup.nodes.Document document = Jsoup.parse(gameResponse.body().string());
 					Element content = document.getElementsByClass("page_content_ctn").first();
+
+					Element discount = document.getElementsByClass("discount_pct").first();
+					if (discount == null || !discount.text().equals("-100%")) {
+						gameFuture.complete(null);
+						return;
+					}
 
 					SteamFreeGame game = SteamFreeGame.fromData(id, content);
 					if (game == null || this.isAnnounced(game)) {
