@@ -255,10 +255,8 @@ public abstract class Formatter<Type> {
 			return "null";
 		} else if (object instanceof Color colour) {
 			return ColourUtility.toHexString(colour.getRGB());
-		} else if (object instanceof Double value) {
-			if (value % 1 == 0) {
-				return Long.toString(value.longValue());
-			}
+		} else if (object instanceof Double value && value % 1 == 0) {
+			return Long.toString(value.longValue());
 		}
 
 		return object.toString();
