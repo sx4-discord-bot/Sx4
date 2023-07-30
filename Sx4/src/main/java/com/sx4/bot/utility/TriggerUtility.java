@@ -146,7 +146,7 @@ public class TriggerUtility {
 
 		boolean indexed = action.getBoolean("indexed", true);
 		boolean increasedIndex = action.getBoolean("increasedIndex", true);
-		String display = action.getString("display");
+		Object display = action.get("display");
 		boolean select = action.getBoolean("select", false);
 
 		EnumSet<SelectType> types = EnumSet.noneOf(SelectType.class);
@@ -158,24 +158,41 @@ public class TriggerUtility {
 			types.add(SelectType.OBJECT);
 		}
 
-		MessagePagedResult<?> paged = new MessagePagedResult.Builder<Object>(bot, list)
+		MessagePagedResult.Builder<?> builder = new MessagePagedResult.Builder<Object>(bot, list)
 			.setTimeout(300)
 			.setIndexed(indexed)
 			.setIncreasedIndex(increasedIndex)
 			.setAutoSelect(action.getBoolean("autoSelect", false))
 			.setPerPage(action.getInteger("perPage", 10))
-			.setSelect(types)
-			.setDisplayFunction(object -> {
+			.setSelect(types);
+
+		if (display == null || display instanceof String) {
+			builder.setDisplayFunction(object -> {
 				if (display == null) {
 					return object.toString();
 				}
 
-				manager.addVariable("this", object);
-				String value = new StringFormatter(display, manager).parse();
-				manager.removeVariable("this");
+				manager.addVariable("value", object);
+				String value = new StringFormatter((String) display, manager).parse();
+				manager.removeVariable("value");
 
 				return value;
-			}).build();
+			});
+		} else {
+			builder.setCustomFunction(paged -> {
+				List<?> values = paged.getPageEntries();
+
+				manager.addVariable("value", values.get(0));
+				manager.addVariable("values", values);
+				Document data = new JsonFormatter((Document) display, manager).parse();
+				manager.removeVariable("values");
+				manager.removeVariable("value");
+
+				return MessageUtility.fromWebhookMessageAsBuilder(MessageUtility.fromJson(data, true).build());
+			});
+		}
+
+		MessagePagedResult<?> paged = builder.build();
 
 		paged.execute(messageChannel, owner);
 
@@ -438,8 +455,19 @@ public class TriggerUtility {
 			}
 
 			Object display = data.get("display");
-			if (display != null && !(display instanceof String)) {
-				throw new IllegalArgumentException("`display` field has to be a boolean");
+			if (display != null) {
+				if (display instanceof String) {
+					action.append("display", display);
+				} else if (display instanceof Document message) {
+					MessageUtility.removeFields(message);
+					if (!MessageUtility.isValid(message, false)) {
+						throw new IllegalArgumentException("`display` field was not valid message json");
+					}
+
+					action.append("display", message);
+				} else {
+					throw new IllegalArgumentException("`display` field has to be a string or json");
+				}
 			}
 
 			if (display != null) {

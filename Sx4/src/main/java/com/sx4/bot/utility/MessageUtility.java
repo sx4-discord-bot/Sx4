@@ -497,7 +497,7 @@ public class MessageUtility {
 		return builder;
 	}
 
-	public static MessageCreateData fromWebhookMessage(WebhookMessage message) {
+	public static MessageCreateBuilder fromWebhookMessageAsBuilder(WebhookMessage message) {
 		MessageCreateBuilder builder = new MessageCreateBuilder();
 
 		List<WebhookEmbed> embeds = message.getEmbeds();
@@ -514,8 +514,13 @@ public class MessageUtility {
 			}
 		}
 
-		return builder.build();
+		return builder;
 	}
+
+	public static MessageCreateData fromWebhookMessage(WebhookMessage message) {
+		return MessageUtility.fromWebhookMessageAsBuilder(message).build();
+	}
+
 
 	private static void keepFields(Document json, Set<String> whitelisted) {
 		json.keySet().removeIf(key -> !whitelisted.contains(key));
