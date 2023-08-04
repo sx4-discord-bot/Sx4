@@ -37,7 +37,7 @@ public enum Slot {
 	}
 
 	public double getMultiplier() {
-		return ((1 / Math.pow((double) this.chance / Slot.TOTAL, 3)) / Slot.SIZE) * 0.6;
+		return ((1 / Math.pow((double) this.chance / Slot.TOTAL, 3)) / Slot.SIZE) * 0.9;
 	}
 
 	public Slot getAbove() {
