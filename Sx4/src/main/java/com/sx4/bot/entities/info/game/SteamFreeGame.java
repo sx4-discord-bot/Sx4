@@ -62,7 +62,13 @@ public class SteamFreeGame extends FreeGame<Integer> {
 		int discountPrice = (int) (Double.parseDouble(discountPriceFormatted.substring(1)) * 100);
 
 		String endText = element.getElementsByClass("game_purchase_discount_quantity ").first().text();
-		int startIndex = endText.indexOf("before ") + 7, endIndex = endText.indexOf(".");
+
+		int beforeIndex = endText.indexOf("before ");
+		if (beforeIndex == -1) {
+			return null;
+		}
+
+		int startIndex = beforeIndex + 7, endIndex = endText.indexOf(".");
 
 		DateTimeFormatter formatter = SteamFreeGame.FORMATTER
 			.parseDefaulting(ChronoField.YEAR, Year.now(SteamFreeGame.ZONE_ID).getValue())
