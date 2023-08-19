@@ -25,6 +25,12 @@ public class UserReference implements User {
 		throw new UnsupportedOperationException();
 	}
 
+	@Nullable
+	@Override
+	public String getGlobalName() {
+		throw new UnsupportedOperationException();
+	}
+
 	@NotNull
 	@Override
 	public String getDiscriminator() {
