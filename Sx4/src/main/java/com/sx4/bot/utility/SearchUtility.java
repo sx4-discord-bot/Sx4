@@ -10,7 +10,6 @@ import com.sx4.bot.entities.mod.PartialEmote;
 import com.vdurmont.emoji.EmojiParser;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.Message.MentionType;
-import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.concrete.Category;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
@@ -368,64 +367,40 @@ public class SearchUtility {
 		}
 	}
 
-	public static GuildChannel getGuildChannel(Guild guild, Collection<ChannelType> types, String query) {
-		return SearchUtility.getGuildChannel(guild, types.toArray(new ChannelType[0]), query);
-	}
-
-	private static GuildChannel getGuildChannelById(Guild guild, String id, ChannelType... types) {
+	private static GuildChannel getGuildChannelById(Guild guild, String id, Class<? extends GuildChannel> clazz) {
 		GuildChannel channel = guild.getGuildChannelById(id);
 		if (channel == null) {
 			return null;
 		}
 
-		for (ChannelType type : types) {
-			if (type == channel.getType()) {
-				return channel;
-			}
+		if (clazz.isInstance(channel)) {
+			return channel;
 		}
 
 		return null;
 	}
 
-	public static GuildChannel getGuildChannel(Guild guild, ChannelType[] types, String query) {
+	public static GuildChannel getGuildChannel(Guild guild, String query) {
+		return SearchUtility.getGuildChannel(guild, GuildChannel.class, query);
+	}
+
+	public static GuildChannel getGuildChannel(Guild guild, Class<? extends GuildChannel> clazz, String query) {
 		Matcher mentionMatch = SearchUtility.CHANNEL_MENTION.matcher(query);
 		if (mentionMatch.matches()) {
 			try {
-				return SearchUtility.getGuildChannelById(guild, mentionMatch.group(1), types);
+				return SearchUtility.getGuildChannelById(guild, mentionMatch.group(1), clazz);
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else if (NumberUtility.isNumberUnsigned(query)) {
 			try {
-				return SearchUtility.getGuildChannelById(guild, query, types);
+				return SearchUtility.getGuildChannelById(guild, query, clazz);
 			} catch (NumberFormatException e) {
 				return null;
 			}
 		} else {
-			return SearchUtility.findAny(guild.getChannels(), query, List.of(GuildChannel::getName), channel -> {
-				for (ChannelType type : types) {
-					if (channel.getType() == type) {
-						return true;
-					}
-				}
-
-				return false;
-			});
+			return SearchUtility.findAny(guild.getChannels(), query, List.of(GuildChannel::getName), clazz::isInstance);
 		}
-	}
-
-	public static GuildChannel getGuildChannel(Guild guild, String query) {
-		GuildChannel channel = SearchUtility.getTextChannel(guild, query);
-		if (channel == null) {
-			channel = SearchUtility.getAudioChannel(guild, query);
-		}
-
-		if (channel == null) {
-			channel = SearchUtility.getCategory(guild, query);
-
-		}
-
-		return channel;
 	}
 	
 	public static TextChannel getTextChannel(Guild guild, String query) {

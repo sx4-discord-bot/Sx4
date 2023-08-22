@@ -21,7 +21,6 @@ import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 
-import java.util.Collections;
 import java.util.List;
 
 public class ChannelCommand extends Sx4Command {
@@ -92,8 +91,8 @@ public class ChannelCommand extends Sx4Command {
 				.setActionRow(List.of(Button.success(acceptId, "Yes"), Button.danger(rejectId, "No")))
 				.queue();
 		} else {
-			GuildChannel channel = SearchUtility.getGuildChannel(event.getGuild(), Collections.singleton(effectiveType), query);
-			if (channel == null) {
+			GuildChannel channel = SearchUtility.getGuildChannel(event.getGuild(), query);
+			if (channel == null || !channel.getType().equals(effectiveType)) {
 				event.replyFailure("I could not find that " + LoggerUtility.getChannelTypeReadable(effectiveType)).queue();
 				return;
 			}

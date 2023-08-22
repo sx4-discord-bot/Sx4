@@ -65,8 +65,8 @@ public class LoggerUtility {
                 return category == null ? 0L : category.getIdLong();
             }
             case TEXT_CHANNEL -> {
-                GuildChannel messageChannel = SearchUtility.getGuildChannel(guild, CHANNEL_TYPES, query);
-                return messageChannel instanceof GuildMessageChannel ? messageChannel.getIdLong() : 0L;
+                GuildChannel messageChannel = SearchUtility.getGuildChannel(guild, GuildMessageChannel.class, query);
+                return messageChannel == null ? 0L : messageChannel.getIdLong();
             }
             case ROLE -> {
                 Role role = SearchUtility.getRole(guild, query);

@@ -27,7 +27,6 @@ import com.jockie.bot.core.utility.StringUtility.QuoteCharacter;
 import com.mongodb.client.model.Projections;
 import com.sx4.api.Sx4Server;
 import com.sx4.bot.annotations.argument.*;
-import com.sx4.bot.annotations.command.ChannelTypes;
 import com.sx4.bot.cache.GoogleSearchCache;
 import com.sx4.bot.cache.MessageCache;
 import com.sx4.bot.cache.SteamGameCache;
@@ -1045,9 +1044,6 @@ public class Sx4 {
 					});
 				}
 
-				ChannelTypes channelTypes = parameter.getAnnotation(ChannelTypes.class);
-				builder.setProperty("channelTypes", channelTypes == null ? ChannelTypes.DEFAULT : channelTypes.value());
-
 				return builder;
 			}).addBuilderConfigureFunction(WebhookChannel.class, (parameter, builder) -> {
 				if (builder.build().hasDefault()) {
@@ -1251,11 +1247,10 @@ public class Sx4 {
 			.registerParser(Item.class, (context, argument, content) -> new ParsedResult<>(this.economyManager.getItemByQuery(content.trim(), Item.class)))
 			.registerParser(OffsetTimeZone.class, (context, argument, content) -> new ParsedResult<>(OffsetTimeZone.getTimeZone(content.trim().toUpperCase())))
 			.registerParser(WebhookChannel.class, (context, argument, content) -> {
-				GuildChannel channel = SearchUtility.getGuildChannel(context.getMessage().getGuild(), WebhookChannel.CHANNEL_TYPES, content.trim());
+				GuildChannel channel = SearchUtility.getGuildChannel(context.getMessage().getGuild(), GuildMessageChannel.class, content.trim());
 				return new ParsedResult<>(channel == null ? null : new WebhookChannel((GuildMessageChannelUnion) channel));
 			}).registerGenericParser(GuildChannel.class, (context, type, argument, content) -> {
-				ChannelType[] channelTypes = argument.getProperty("channelTypes");
-				GuildChannel channel = SearchUtility.getGuildChannel(context.getMessage().getGuild(), channelTypes.length == 0 ? ChannelType.values() : channelTypes, content.trim());
+				GuildChannel channel = SearchUtility.getGuildChannel(context.getMessage().getGuild(), argument.getType(), content.trim());
 				return new ParsedResult<>(channel);
 			}).registerParser(ItemStack.class, (context, argument, content) -> {
 				Class type = argument.getProperty("itemClass");

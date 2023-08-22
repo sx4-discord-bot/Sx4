@@ -18,12 +18,9 @@ import net.dv8tion.jda.internal.utils.Checks;
 import okhttp3.OkHttpClient;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 
 public class WebhookChannel implements IWebhookContainerMixin<WebhookChannel> {
-
-	public static final ChannelType[] CHANNEL_TYPES = Arrays.stream(ChannelType.values()).filter(ChannelType::isMessage).toArray(ChannelType[]::new);
 
 	private final GuildMessageChannelUnion channel;
 

@@ -21,7 +21,8 @@ import com.sx4.bot.utility.SettingUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.IPermissionHolder;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.Channel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -50,8 +51,8 @@ public class BlacklistCommand extends Sx4Command {
 	@CommandId(168)
 	@Examples({"blacklist add #general @Shea#6653 fish", "blacklist add #bots @Members ban"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) @DefaultNull TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
-		List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
+	public void add(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) @DefaultNull GuildMessageChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
+		List<GuildMessageChannel> channels = channel == null ? event.getGuild().getChannels().stream().filter(c -> c instanceof GuildMessageChannel).map(GuildMessageChannel.class::cast).collect(Collectors.toList()) : List.of(channel);
 
 		boolean role = holder instanceof Role;
 		int type = role ? HolderType.ROLE.getType() : HolderType.USER.getType();
@@ -93,8 +94,8 @@ public class BlacklistCommand extends Sx4Command {
 	@CommandId(180)
 	@Examples({"blacklist remove #general @Shea#6653 fish", "blacklist remove #bots @Members ban"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) @DefaultNull TextChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
-		List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
+	public void remove(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true) @DefaultNull GuildMessageChannel channel, @Argument(value="user | role") IPermissionHolder holder, @Argument(value="command | module", endless=true) List<Sx4Command> commands) {
+		List<GuildMessageChannel> channels = channel == null ? event.getGuild().getChannels().stream().filter(c -> c instanceof GuildMessageChannel).map(GuildMessageChannel.class::cast).collect(Collectors.toList()) : List.of(channel);
 
 		boolean role = holder instanceof Role;
 
@@ -131,7 +132,7 @@ public class BlacklistCommand extends Sx4Command {
 	@CommandId(181)
 	@Examples({"blacklist reset #channel", "blacklist reset all"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
-	public void reset(Sx4CommandEvent event, @Argument(value="channel", endless=true) @AlternativeOptions("all") Alternative<TextChannel> option) {
+	public void reset(Sx4CommandEvent event, @Argument(value="channel", endless=true) @AlternativeOptions("all") Alternative<GuildMessageChannel> option) {
 		List<Bson> update = List.of(Operators.set("holders", Operators.reduce(Operators.ifNull("$holders", Collections.EMPTY_LIST), Collections.EMPTY_LIST, Operators.concatArrays("$$value", Operators.cond(Operators.isEmpty(Operators.ifNull(Operators.first(Operators.map(List.of("$$this"), "$$holder.whitelisted", "holder")), Collections.EMPTY_LIST)), Collections.EMPTY_LIST, List.of(Operators.removeObject("$$this", "blacklisted")))))));
 		if (option.isAlternative()) {
 			event.getMongo().updateManyBlacklists(Filters.eq("guildId", event.getGuild().getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
@@ -147,7 +148,7 @@ public class BlacklistCommand extends Sx4Command {
 				event.replySuccess("Reset **" + result.getModifiedCount() + "** channels of their blacklist configurations").queue();
 			});
 		} else {
-			TextChannel channel = option.getValue();
+			GuildMessageChannel channel = option.getValue();
 			event.getMongo().updateBlacklist(Filters.eq("channelId", channel.getIdLong()), update, new UpdateOptions()).whenComplete((result, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
@@ -166,18 +167,18 @@ public class BlacklistCommand extends Sx4Command {
 	@Command(value="list", description="Lists the commands roles/users blacklisted from using in a specific channel")
 	@CommandId(182)
 	@Examples({"blacklist list", "blacklist list #channel"})
-	public void list(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) @DefaultNull TextChannel channel) {
-		List<TextChannel> channels = channel == null ? event.getGuild().getTextChannels() : List.of(channel);
+	public void list(Sx4CommandEvent event, @Argument(value="channel", nullDefault=true, endless=true) @DefaultNull GuildMessageChannel channel) {
+		List<GuildMessageChannel> channels = channel == null ? event.getGuild().getChannels().stream().filter(c -> c instanceof GuildMessageChannel).map(GuildMessageChannel.class::cast).collect(Collectors.toList()) : List.of(channel);
 
-		MessagePagedResult<TextChannel> channelPaged = new MessagePagedResult.Builder<>(event.getBot(), channels)
+		MessagePagedResult<GuildMessageChannel> channelPaged = new MessagePagedResult.Builder<>(event.getBot(), channels)
 			.setAutoSelect(true)
 			.setAuthor("Channels", null, event.getGuild().getIconUrl())
-			.setDisplayFunction(TextChannel::getAsMention)
-			.setSelectFunction(TextChannel::getName)
+			.setDisplayFunction(Channel::getAsMention)
+			.setSelectFunction(Channel::getName)
 			.build();
 
 		channelPaged.onSelect(channelSelect -> {
-			TextChannel selectedChannel = channelSelect.getSelected();
+			GuildMessageChannel selectedChannel = channelSelect.getSelected();
 
 			Document blacklist = event.getMongo().getBlacklist(Filters.eq("channelId", selectedChannel.getIdLong()), Projections.include("holders"));
 			List<Document> defaultHolders = blacklist == null ? CheckUtility.getDefaultBlacklist(event.getGuild().getIdLong()) : CheckUtility.getCombinedBlacklist(event.getGuild().getIdLong(), blacklist.getList("holders", Document.class));

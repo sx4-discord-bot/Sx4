@@ -10,7 +10,6 @@ import com.sx4.bot.annotations.argument.AlternativeOptions;
 import com.sx4.bot.annotations.argument.DefaultNumber;
 import com.sx4.bot.annotations.argument.Limit;
 import com.sx4.bot.annotations.command.AuthorPermissions;
-import com.sx4.bot.annotations.command.ChannelTypes;
 import com.sx4.bot.annotations.command.CommandId;
 import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.category.ModuleCategory;
@@ -132,8 +131,8 @@ public class GiveawayCommand extends Sx4Command {
 					.setCancelPredicate(e -> e.getMessage().getContentRaw().equalsIgnoreCase("cancel"))
 					.setTimeout(30)
 					.setPredicate(e -> {
-						GuildChannel messageChannel = SearchUtility.getGuildChannel(event.getGuild(), ChannelTypes.DEFAULT, e.getMessage().getContentRaw());
-						if (messageChannel instanceof GuildMessageChannel) {
+						GuildChannel messageChannel = SearchUtility.getGuildChannel(event.getGuild(), GuildMessageChannel.class, e.getMessage().getContentRaw());
+						if (messageChannel != null) {
 							atomicChannel.set((GuildMessageChannel) messageChannel);
 							
 							return true;
