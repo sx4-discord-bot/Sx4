@@ -2,17 +2,16 @@ package com.sx4.bot.cache;
 
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.http.HttpCallback;
+import com.sx4.bot.utility.QueryMatches;
 import okhttp3.Request;
 import org.bson.Document;
 
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 public class SteamGameCache {
 
@@ -35,10 +34,12 @@ public class SteamGameCache {
 	}
 
 	public List<Document> getGames(String name) {
-		return this.games.stream()
-			.filter(game -> game.getString("name").toLowerCase().contains(name.toLowerCase()))
-			.sorted(Comparator.comparing(game -> game.getString("name")))
-			.collect(Collectors.toList());
+		QueryMatches<Document> matches = new QueryMatches<>(name, 25);
+		for (Document game : this.games) {
+			matches.addValue(game, game.getString("name"));
+		}
+
+		return matches.toList();
 	}
 
 	public void initiateCache() {
