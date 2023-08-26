@@ -20,7 +20,7 @@ public class SelectMenuHandler implements EventListener {
 		this.bot = bot;
 	}
 
-	public void handleSubCommandSelect(StringSelectInteractionEvent event, CustomSelectMenuId customId) {
+	public void handleSubCommandSelect(StringSelectInteractionEvent event) {
 		int commandId = Integer.parseInt(event.getValues().get(0));
 		ICommand command = this.bot.getCommandListener().getAllCommands().stream()
 			.map(Sx4Command.class::cast)
@@ -49,7 +49,7 @@ public class SelectMenuHandler implements EventListener {
 
 		SelectMenuType type = SelectMenuType.fromId(customId.getType());
 		switch (type) {
-			case SUB_COMMAND_SELECT -> this.handleSubCommandSelect(event, customId);
+			case SUB_COMMAND_SELECT -> this.handleSubCommandSelect(event);
 		}
 	}
 
