@@ -15,8 +15,9 @@ public class StringUtility {
 			maxScore += max;
 
 			if (s >= secondLength) {
-				score += max;
-				continue;
+				// Increase score based on remaining missing characters multiplied by the complement of the match percentage up to this point
+				score += max * (maxLength - secondLength) * (1D - (maxScore - score) / maxScore);
+				break;
 			}
 
 			char secondChar = Character.toLowerCase(second.charAt(s));
