@@ -2,6 +2,8 @@ package com.sx4.bot.commands.games;
 
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
+import com.mongodb.client.model.Accumulators;
+import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
 import com.sx4.bot.annotations.argument.Lowercase;
@@ -14,6 +16,7 @@ import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.games.GameState;
 import com.sx4.bot.entities.games.GameType;
+import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.NumberUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Member;
@@ -22,7 +25,6 @@ import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,31 +98,36 @@ public class RPSCommand extends Sx4Command {
 
 		Bson filter = Filters.and(Filters.eq("userId", user.getIdLong()), Filters.eq("type", GameType.ROCK_PAPER_SCISSORS.getId()));
 
-		List<Document> games = event.getMongo().getGames(filter, Projections.include("state")).into(new ArrayList<>());
-		if (games.isEmpty()) {
-			event.replyFailure("That user has not played rock paper scissors yet").queue();
-			return;
-		}
+		List<Bson> pipeline = List.of(
+			Aggregates.match(filter),
+			Aggregates.project(Projections.include("state")),
+			Aggregates.group("$state", Accumulators.sum("count", 1))
+		);
 
-		int wins = 0, draws = 0, losses = 0, total = 0;
-		for (Document game : games) {
-			GameState state = GameState.fromId(game.getInteger("state"));
-			if (state == GameState.WIN) {
-				wins++;
-			} else if (state == GameState.DRAW) {
-				draws++;
-			} else if (state == GameState.LOSS) {
-				losses++;
+		event.getMongo().aggregateGames(pipeline).whenComplete((documents, exception) -> {
+			if (ExceptionUtility.sendExceptionally(event, exception)) {
+				return;
 			}
 
-			total++;
-		}
+			int total = 0;
+			Map<Integer, Integer> data = new HashMap<>();
+			for (Document document : documents) {
+				int count = document.getInteger("count");
+				data.put(document.getInteger("_id"), count);
 
-		EmbedBuilder embed = new EmbedBuilder()
-			.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl())
-			.setDescription(String.format("Wins: %,d\nDraws: %,d\nLosses: %,d\n\nWin Percentage: %s%%", wins, draws, losses, NumberUtility.DEFAULT_DECIMAL_FORMAT.format(((double) wins / total) * 100)));
+				total += count;
+			}
 
-		event.reply(embed.build()).queue();
+			int wins = data.getOrDefault(GameState.WIN.getId(), 0);
+			int draws = data.getOrDefault(GameState.DRAW.getId(), 0);
+			int losses = data.getOrDefault(GameState.LOSS.getId(), 0);
+
+			EmbedBuilder embed = new EmbedBuilder()
+				.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl())
+				.setDescription(String.format("Wins: %,d\nDraws: %,d\nLosses: %,d\n\nWin Percentage: %s%%", wins, draws, losses, NumberUtility.DEFAULT_DECIMAL_FORMAT.format(((double) wins / total) * 100)));
+
+			event.reply(embed.build()).queue();
+		});
 	}
 
 }
