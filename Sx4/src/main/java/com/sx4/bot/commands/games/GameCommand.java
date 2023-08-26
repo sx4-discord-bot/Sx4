@@ -7,6 +7,7 @@ import com.jockie.bot.core.option.Option;
 import com.mongodb.client.model.*;
 import com.sx4.bot.annotations.command.BotPermissions;
 import com.sx4.bot.annotations.command.CommandId;
+import com.sx4.bot.annotations.command.Examples;
 import com.sx4.bot.annotations.command.Redirects;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
@@ -50,6 +51,7 @@ public class GameCommand extends Sx4Command {
 
 	@Command(value="leaderboard", aliases={"lb"}, description="View the users who have played/won/lost/drawn the most games")
 	@CommandId(457)
+	@Examples({"game leaderboard", "game leaderboard SLOT", "game leaderboard SLOT GUESS_THE_NUMBER --state=win"})
 	@Redirects({"lb games", "leaderboard games", "lb game", "leaderboard game"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void leaderboard(Sx4CommandEvent event, @Argument(value="games") @Endless(minArguments=0) GameType[] gameTypes, @Option(value="server", aliases={"guild"}, description="Filters by only users in the current server") boolean guild, @Option(value="state", description="Filters whether the leaderboard should be for wins, played, losses or draws") GameState state) {
@@ -123,6 +125,7 @@ public class GameCommand extends Sx4Command {
 
 	@Command(value="list", aliases={"game list", "game list @Shea#6653", "game list Shea"}, description="Lists basic info on all games a user has played on Sx4")
 	@CommandId(297)
+	@Examples({"game list", "game list Shea#6653"})
 	@Redirects({"games"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
 	public void list(Sx4CommandEvent event, @Argument(value="user", endless=true, nullDefault=true) Member member) {
