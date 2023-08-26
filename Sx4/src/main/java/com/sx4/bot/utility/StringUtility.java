@@ -16,7 +16,7 @@ public class StringUtility {
 
 			if (s >= secondLength) {
 				// Increase score based on remaining missing characters multiplied by the complement of the match percentage with a 0.05 offset up to this point
-				score += max * (maxLength - secondLength) * Math.max(1, 1.05D - (maxScore - score) / maxScore);
+				score += max * (maxLength - secondLength) * 1.05D - (maxScore - score) / maxScore;
 				break;
 			}
 

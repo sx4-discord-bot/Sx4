@@ -39,7 +39,6 @@ public class ConnectionHandler implements EventListener {
 	
 	private int readyEventsCalled = 0;
 	private boolean ready = false;
-	private boolean status = false;
 
 	public boolean isReady() {
 		return this.ready;

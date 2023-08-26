@@ -32,7 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 
 public class TwitchManager {
 
-	public static Document DEFAULT_MESSAGE = new Document("embed",
+	public static final Document DEFAULT_MESSAGE = new Document("embed",
 		new Document("title", "{streamer.name} is now live!")
 			.append("url", "{streamer.url}")
 			.append("description", "{stream.title}")

@@ -70,7 +70,7 @@ public class WebhookChannel implements IWebhookContainerMixin<WebhookChannel> {
 	@NotNull
 	@Override
 	public MessageChannel asMessageChannel() {
-		return (MessageChannel) this.channel;
+		return this.channel;
 	}
 
 	@NotNull
@@ -124,7 +124,7 @@ public class WebhookChannel implements IWebhookContainerMixin<WebhookChannel> {
 	@NotNull
 	@Override
 	public GuildMessageChannel asGuildMessageChannel() {
-		return (GuildMessageChannel) this.channel;
+		return this.channel;
 	}
 
 	@NotNull

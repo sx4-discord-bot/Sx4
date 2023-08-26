@@ -41,7 +41,7 @@ public class PermissionUtility {
 			return false;
 		}
 
-		int userLimit = channel instanceof VoiceChannel ? ((VoiceChannel) channel).getUserLimit() : 0;
+		int userLimit = channel instanceof VoiceChannel ? channel.getUserLimit() : 0;
 		if (userLimit > 0) {
 			return userLimit >= channel.getMembers().size();
 		}

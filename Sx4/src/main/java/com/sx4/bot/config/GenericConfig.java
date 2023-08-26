@@ -69,7 +69,7 @@ public class GenericConfig {
 		return defaultValue;
 	}
 
-	public GenericConfig set(String path, Object value) throws IOException {
+	public GenericConfig set(String path, Object value) {
 		return this.set(path.split("\\."), value);
 	}
 

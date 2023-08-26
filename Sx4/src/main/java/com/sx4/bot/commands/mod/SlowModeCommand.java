@@ -8,7 +8,6 @@ import com.sx4.bot.utility.PermissionUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.channel.attribute.ISlowmodeChannel;
-import net.dv8tion.jda.api.managers.channel.attribute.ISlowmodeChannelManager;
 
 import java.time.Duration;
 import java.util.EnumSet;
@@ -53,7 +52,7 @@ public class SlowModeCommand extends Sx4Command {
 			return;
 		}
 
-		((ISlowmodeChannelManager<ISlowmodeChannel, ?>) channel.getManager()).setSlowmode((int) seconds)
+		channel.getManager().setSlowmode((int) seconds)
 			.flatMap($ -> event.replySuccess(seconds == 0 ? "Turned off the slow mode in " + channel.getAsMention() : "Set the slow mode in " + channel.getAsMention() + " to " + TimeUtility.LONG_TIME_FORMATTER.parse(seconds)))
 			.queue();
 	}

@@ -270,24 +270,19 @@ public class ModUtility {
 			Warn nextWarning = new Warn(nextAction, warnings + 1);
 
 			switch (action.getModAction()) {
-				case WARN:
+				case WARN -> {
 					bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
 					future.complete(new WarnAction(currentWarning));
-
-					break;
-				case MUTE_EXTEND:
-				case MUTE:
+				}
+				case MUTE_EXTEND, MUTE -> {
 					if (!guild.getSelfMember().hasPermission(Permission.MANAGE_ROLES)) {
 						future.completeExceptionally(new BotPermissionException(Permission.MANAGE_ROLES));
 						return;
 					}
-
 					AtomicReference<Role> atomicRole = new AtomicReference<>();
-
 					Document mute = data.get("mute", MongoDatabase.EMPTY_DOCUMENT);
 					long muteDuration = ((TimeAction) action).getDuration();
 					boolean extend = action.getModAction().isExtend();
-
 					ModUtility.upsertMuteRole(bot.getMongo(), guild, mute.get("roleId", 0L), mute.get("autoUpdate", true)).thenCompose(role -> {
 						atomicRole.set(role);
 
@@ -307,62 +302,52 @@ public class ModUtility {
 						Role role = atomicRole.get();
 
 						guild.addRoleToMember(target, role).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
-							bot.getMuteManager().putMute(guild.getIdLong(), target.getIdLong(), role.getIdLong(), muteDuration,extend && muteResult.getUpsertedId() == null);
+							bot.getMuteManager().putMute(guild.getIdLong(), target.getIdLong(), role.getIdLong(), muteDuration, extend && muteResult.getUpsertedId() == null);
 
 							bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
 
 							future.complete(new WarnAction(currentWarning));
 						});
 					});
-
-					break;
-				case KICK:
+				}
+				case KICK -> {
 					if (!guild.getSelfMember().hasPermission(Permission.KICK_MEMBERS)) {
 						future.completeExceptionally(new BotPermissionException(Permission.KICK_MEMBERS));
 						return;
 					}
-
 					if (!guild.getSelfMember().canInteract(target)) {
 						future.completeExceptionally(new BotHierarchyException("kick"));
 						return;
 					}
-
 					if (!CheckUtility.hasPermissions(bot, moderator, fakePermissions, Permission.KICK_MEMBERS)) {
 						future.completeExceptionally(new AuthorPermissionException(Permission.KICK_MEMBERS));
 						return;
 					}
-
 					target.kick(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
 						bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
 
 						future.complete(new WarnAction(currentWarning));
 					});
-
-					break;
-				case TEMPORARY_BAN:
+				}
+				case TEMPORARY_BAN -> {
 					if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
 						future.completeExceptionally(new BotPermissionException(Permission.BAN_MEMBERS));
 						return;
 					}
-
 					if (!guild.getSelfMember().canInteract(target)) {
 						future.completeExceptionally(new BotHierarchyException("ban"));
 						return;
 					}
-
 					if (!CheckUtility.hasPermissions(bot, moderator, fakePermissions, Permission.BAN_MEMBERS)) {
 						future.completeExceptionally(new AuthorPermissionException(Permission.BAN_MEMBERS));
 						return;
 					}
-
 					long temporaryBanDuration = ((TimeAction) action).getDuration();
-
 					Bson temporaryBanUpdate = Updates.set("unbanAt", Clock.systemUTC().instant().getEpochSecond() + temporaryBanDuration);
 					Bson temporaryBanFilter = Filters.and(
 						Filters.eq("userId", target.getIdLong()),
 						Filters.eq("guildId", guild.getIdLong())
 					);
-
 					bot.getMongo().updateTemporaryBan(temporaryBanFilter, temporaryBanUpdate, new UpdateOptions().upsert(true)).whenComplete((temporaryBanResult, temporaryBanException) -> {
 						if (temporaryBanException != null) {
 							future.completeExceptionally(temporaryBanException);
@@ -377,33 +362,28 @@ public class ModUtility {
 							future.complete(new WarnAction(currentWarning));
 						});
 					});
-
-					break;
-				case BAN:
+				}
+				case BAN -> {
 					if (!guild.getSelfMember().hasPermission(Permission.BAN_MEMBERS)) {
 						future.completeExceptionally(new BotPermissionException(Permission.BAN_MEMBERS));
 						return;
 					}
-
 					if (!guild.getSelfMember().canInteract(target)) {
 						future.completeExceptionally(new BotHierarchyException("ban"));
 						return;
 					}
-
 					if (!CheckUtility.hasPermissions(bot, moderator, fakePermissions, Permission.BAN_MEMBERS)) {
 						future.completeExceptionally(new AuthorPermissionException(Permission.BAN_MEMBERS));
 						return;
 					}
-
 					target.ban(1, TimeUnit.DAYS).reason(ModUtility.getAuditReason(reason, moderator.getUser())).queue($ -> {
 						bot.getModActionManager().onModAction(new WarnEvent(moderator, target.getUser(), reason, currentWarning, nextWarning));
 
 						future.complete(new WarnAction(currentWarning));
 					});
-
-					break;
-				default:
-					break;
+				}
+				default -> {
+				}
 			}
 		});
 

@@ -470,8 +470,8 @@ public abstract class PagedResult<Type, Context> {
 		protected Function<T, String> selectFunction;
 		protected BiPredicate<String, T> selectablePredicate = null;
 
-		protected Consumer<PagedSelectEvent<T>> onSelect = null;
-		protected Runnable onTimeout = null;
+		protected final Consumer<PagedSelectEvent<T>> onSelect = null;
+		protected final Runnable onTimeout = null;
 
 		public Builder(Sx4 bot, List<T> list) {
 			this.bot = bot;

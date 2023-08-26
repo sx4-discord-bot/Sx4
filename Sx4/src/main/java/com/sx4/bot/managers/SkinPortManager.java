@@ -12,8 +12,6 @@ import java.util.concurrent.TimeUnit;
 
 public class SkinPortManager {
 
-	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-
 	private final Sx4 bot;
 
 	private String csrf;
@@ -25,7 +23,8 @@ public class SkinPortManager {
 	public SkinPortManager(Sx4 bot) {
 		this.bot = bot;
 
-		this.executor.scheduleAtFixedRate(this::retrieveCSRFData, 0, 3, TimeUnit.HOURS);
+		ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+		executor.scheduleAtFixedRate(this::retrieveCSRFData, 0, 3, TimeUnit.HOURS);
 	}
 
 	public String getCSRFToken() {
