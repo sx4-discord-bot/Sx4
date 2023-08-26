@@ -92,6 +92,11 @@ public class MediaModeCommand extends Sx4Command {
 				return;
 			}
 
+			if (result.getMatchedCount() == 0) {
+				event.replyFailure("Media mode has not been setup in that channel").queue();
+				return;
+			}
+
 			if (result.getModifiedCount() == 0) {
 				event.replyFailure("That media only channel already had those types set").queue();
 				return;

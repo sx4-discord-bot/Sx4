@@ -43,23 +43,21 @@ public class MediaModeHandler implements EventListener {
 
 		GuildMessageChannel channel = message.getGuildChannel();
 
-		this.bot.getExecutor().submit(() -> {
-			Document media = this.bot.getMongo().getMediaChannel(Filters.eq("channelId", channel.getIdLong()), Projections.include("types"));
-			if (media == null) {
-				return;
-			}
+		Document media = this.bot.getMongo().getMediaChannel(Filters.eq("channelId", channel.getIdLong()), Projections.include("types"));
+		if (media == null) {
+			return;
+		}
 
-			EnumSet<MediaType> types = MediaType.getMediaTypes(media.get("types", MediaType.ALL));
+		EnumSet<MediaType> types = MediaType.getMediaTypes(media.get("types", MediaType.ALL));
 
-			Attachment attachment = message.getAttachments().stream()
-				.filter(file -> types.stream().anyMatch(type -> type.getExtension().equalsIgnoreCase(this.getMimeType(file.getContentType()))))
-				.findFirst()
-				.orElse(null);
+		Attachment attachment = message.getAttachments().stream()
+			.filter(file -> types.stream().anyMatch(type -> type.getExtension().equalsIgnoreCase(this.getMimeType(file.getContentType()))))
+			.findFirst()
+			.orElse(null);
 
-			if (attachment == null && message.getGuild().getSelfMember().hasPermission(channel, Permission.MESSAGE_MANAGE)) {
-				message.delete().queue();
-			}
-		});
+		if (attachment == null && message.getGuild().getSelfMember().hasPermission(channel, Permission.MESSAGE_MANAGE)) {
+			message.delete().queue();
+		}
 	}
 
 	public void onMessageReceived(MessageReceivedEvent event) {
