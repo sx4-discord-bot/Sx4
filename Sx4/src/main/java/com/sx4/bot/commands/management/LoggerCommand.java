@@ -242,7 +242,7 @@ public class LoggerCommand extends Sx4Command {
     }
 
     @Command(value="list", description="List and get info about loggers in the current server")
-    @CommandId(458)
+    @CommandId(523)
     @Examples({"logger list"})
     @BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
     public void list(Sx4CommandEvent event, @Argument(value="channel", endless=true, nullDefault=true) WebhookChannel channel) {
