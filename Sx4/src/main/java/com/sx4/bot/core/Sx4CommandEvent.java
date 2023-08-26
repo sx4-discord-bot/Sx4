@@ -89,7 +89,7 @@ public class Sx4CommandEvent extends CommandEvent {
 	}
 	
 	public MessageCreateAction replyHelp() {
-		return this.reply(HelpUtility.getHelpMessage(this.command, this.hasPermission(Permission.MESSAGE_EMBED_LINKS)));
+		return this.reply(HelpUtility.getHelpMessage(this.command, this.getAuthor(), this.hasPermission(Permission.MESSAGE_EMBED_LINKS)));
 	}
 
 	public MessageCreateAction replyTimed(long start) {

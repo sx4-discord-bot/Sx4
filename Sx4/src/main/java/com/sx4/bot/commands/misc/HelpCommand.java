@@ -68,7 +68,7 @@ public class HelpCommand extends Sx4Command {
 					.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl())
 					.build();
 				
-				categoryPaged.onSelect(categorySelect -> event.reply(HelpUtility.getHelpMessage(categorySelect.getSelected(), embed)).queue());
+				categoryPaged.onSelect(categorySelect -> event.reply(HelpUtility.getHelpMessage(categorySelect.getSelected(), event.getAuthor(), embed)).queue());
 				
 				categoryPaged.execute(event);
 			});
@@ -88,7 +88,7 @@ public class HelpCommand extends Sx4Command {
 					.setDisplayFunction(Sx4Command::getUsage)
 					.build();
 
-				paged.onSelect(select -> event.reply(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
+				paged.onSelect(select -> event.reply(HelpUtility.getHelpMessage(select.getSelected(), event.getAuthor(), embed)).queue());
 
 				paged.execute(event);
 			} else if (!categories.isEmpty()) {
@@ -113,7 +113,7 @@ public class HelpCommand extends Sx4Command {
 						.setAuthor(category.getName(), null, event.getAuthor().getEffectiveAvatarUrl())
 						.build();
 
-					categoryPaged.onSelect(categorySelect -> event.reply(HelpUtility.getHelpMessage(categorySelect.getSelected(), embed)).queue());
+					categoryPaged.onSelect(categorySelect -> event.reply(HelpUtility.getHelpMessage(categorySelect.getSelected(), event.getAuthor(), embed)).queue());
 
 					categoryPaged.execute(event);
 				});

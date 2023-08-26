@@ -5,10 +5,16 @@ import com.jockie.bot.core.command.impl.DummyCommand;
 import com.jockie.bot.core.option.IOption;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.core.Sx4Command;
+import com.sx4.bot.entities.interaction.CustomSelectMenuId;
+import com.sx4.bot.entities.interaction.SelectMenuType;
 import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.paged.PagedResult.SelectType;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.interactions.components.selections.SelectMenu;
+import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
+import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 
@@ -18,7 +24,7 @@ import java.util.stream.Collectors;
 
 public class HelpUtility {
 
-	public static MessageCreateData getHelpMessage(ICommand initialCommand, boolean embed) {
+	public static MessageCreateData getHelpMessage(ICommand initialCommand, User author, boolean embed) {
 		MessageCreateBuilder builder = new MessageCreateBuilder();
 		
 		Sx4Command command = initialCommand instanceof DummyCommand ? (Sx4Command) ((DummyCommand) initialCommand).getActualCommand() : (Sx4Command) initialCommand;
@@ -30,7 +36,8 @@ public class HelpUtility {
 			
 			options.append("`").append(option.getName()).append(option.getType() != boolean.class ? "=<value>" : "").append("` - ").append(option.getDescription()).append(i == command.getOptions().size() - 1 ? "" : "\n");
 		}
-		
+
+		List<ICommand> subCommands = command.getSubCommands();
 		if (embed) {
 			EmbedBuilder embedBuilder = new EmbedBuilder();
 			embedBuilder.setTitle(command.getCommandTrigger());
@@ -57,7 +64,7 @@ public class HelpUtility {
 				embedBuilder.addField("Redirects", String.join(", ", command.getRedirects()), false);
 			}
 			
-			if (!command.getSubCommands().isEmpty()) {
+			if (!subCommands.isEmpty()) {
 				embedBuilder.addField("Sub Commands", command.getSubCommands().stream().map(ICommand::getCommand).collect(Collectors.joining(", ")), false);
 			}
 
@@ -65,7 +72,7 @@ public class HelpUtility {
 				embedBuilder.setFooter("Premium Command ⭐");
 			}
 	
-			return builder.setEmbeds(embedBuilder.build()).build();
+			builder.setEmbeds(embedBuilder.build());
 		} else {
 			String placeHolder = "%s:\n%s\n\n";
 			
@@ -94,16 +101,35 @@ public class HelpUtility {
 				formatter.format(placeHolder, "Redirects", String.join(", ", command.getRedirects()));
 			}
 			
-			if (!command.getSubCommands().isEmpty()) {
+			if (!subCommands.isEmpty()) {
 				formatter.format(placeHolder, "Required Permissions", command.getSubCommands().stream().map(ICommand::getCommand).collect(Collectors.joining(", ")));
 			}
 			
-			MessageCreateData message = builder.setContent(formatter.toString()).build();
-			
+			builder.setContent(formatter.toString());
 			formatter.close();
-			
-			return message;
 		}
+
+		if (!subCommands.isEmpty()) {
+			CustomSelectMenuId menuId = new CustomSelectMenuId.Builder()
+				.setType(SelectMenuType.SUB_COMMAND_SELECT)
+				.setOwners(author.getIdLong())
+				.build();
+
+			List<SelectOption> selectOptions = subCommands.stream()
+				.limit(SelectMenu.OPTIONS_MAX_AMOUNT)
+				.map(Sx4Command.class::cast)
+				.map(c -> SelectOption.of(c.getCommandTrigger(), Integer.toString(c.getId())))
+				.collect(Collectors.toList());
+
+			StringSelectMenu menu = menuId.asMenuBuilder("Select Sub Command")
+				.setMaxValues(1)
+				.addOptions(selectOptions)
+				.build();
+
+			builder.setActionRow(menu);
+		}
+
+		return builder.build();
 	}
 	
 	public static MessagePagedResult.Builder<Sx4Command> getCommandsPaged(Sx4 bot, List<Sx4Command> commands) {

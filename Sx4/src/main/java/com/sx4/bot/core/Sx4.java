@@ -260,6 +260,7 @@ public class Sx4 {
 		manager.register(new WaiterHandler(this));
 		manager.register(new ButtonHandler(this));
 		manager.register(new ModalHandler(this));
+		manager.register(new SelectMenuHandler(this));
 		manager.register(this.messageCache);
 
 		this.shardManager = this.createShardManager(manager);
@@ -779,7 +780,7 @@ public class Sx4 {
 				MessageChannel channel = message.getChannel();
 				boolean embed = !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission((GuildChannel) channel, Permission.MESSAGE_EMBED_LINKS);
 				
-				channel.sendMessage(HelpUtility.getHelpMessage(commands.get(0), embed)).queue();
+				channel.sendMessage(HelpUtility.getHelpMessage(commands.get(0), message.getAuthor(), embed)).queue();
 			}).setMessageParseFailureFunction((message, prefix, failures) -> {
 				if (!CheckUtility.canReply(this, message, prefix)) {
 					return;
@@ -851,7 +852,7 @@ public class Sx4 {
 					.setDisplayFunction(command -> command.getUsage())
 					.build();
 
-				paged.onSelect(select -> channel.sendMessage(HelpUtility.getHelpMessage(select.getSelected(), embed)).queue());
+				paged.onSelect(select -> channel.sendMessage(HelpUtility.getHelpMessage(select.getSelected(), message.getAuthor(), embed)).queue());
 
 				paged.execute(message);
 			}).setPrefixesFunction(message -> {
@@ -1818,7 +1819,7 @@ public class Sx4 {
 					return;
 				}
 
-				message.getChannel().sendMessage(HelpUtility.getHelpMessage(command, !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission(message.getGuildChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
+				message.getChannel().sendMessage(HelpUtility.getHelpMessage(command, message.getAuthor(), !message.isFromGuild() || message.getGuild().getSelfMember().hasPermission(message.getGuildChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
 			}).registerResponse(Enum.class, (argument, message, content) -> {
 				Class<?> finalClass = argument.getProperty("finalClass", Class.class);
 				finalClass = finalClass == null ? argument.getType() : finalClass;
