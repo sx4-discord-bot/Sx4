@@ -10,7 +10,6 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
-import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import org.jetbrains.annotations.NotNull;
 
 public class SelectMenuHandler implements EventListener {
@@ -33,7 +32,7 @@ public class SelectMenuHandler implements EventListener {
 			return;
 		}
 
-		event.editMessage(MessageEditData.fromCreateData(HelpUtility.getHelpMessage(command, event.getUser(), !event.isFromGuild() || event.getGuild().getSelfMember().hasPermission(event.getGuildChannel(), Permission.MESSAGE_EMBED_LINKS)))).queue();
+		event.reply(HelpUtility.getHelpMessage(command, event.getUser(), !event.isFromGuild() || event.getGuild().getSelfMember().hasPermission(event.getGuildChannel(), Permission.MESSAGE_EMBED_LINKS))).queue();
 	}
 
 	@Override
