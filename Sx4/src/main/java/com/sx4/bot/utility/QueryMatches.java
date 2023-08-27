@@ -19,7 +19,7 @@ public class QueryMatches<Type> {
 	}
 
 	public QueryMatches(String query, int minScore) {
-		this(new TreeSet<>(Collections.reverseOrder(Comparator.comparingInt(QueryMatch::score))), query, 0, minScore);
+		this(new TreeSet<>(), query, 0, minScore);
 	}
 
 	public int getMaxScore() {
@@ -52,6 +52,10 @@ public class QueryMatches<Type> {
 		return this.set.first();
 	}
 
+	public List<QueryMatch<Type>> toMatchList() {
+		return this.set.stream().filter(query -> this.maxScore != 100 || query.score == 100).collect(Collectors.toCollection(LinkedList::new));
+	}
+
 	public List<Type> toList() {
 		return this.set.stream().filter(query -> this.maxScore != 100 || query.score == 100).map(QueryMatch::value).collect(Collectors.toCollection(LinkedList::new));
 	}
@@ -76,7 +80,11 @@ public class QueryMatches<Type> {
 		}
 
 		public int compareTo(QueryMatch<T> other) {
-			return Integer.compare(this.score, other.score);
+			if (this.score == other.score && !this.equals(other)) {
+				return 1;
+			}
+
+			return Integer.compare(other.score, this.score);
 		}
 
 	}

@@ -12,13 +12,16 @@ public class StringUtility {
 		double score = 0, maxScore = 0;
 		Char : for (int s = 0; s < maxLength; s++) {
 			int max = Math.max(firstLength - s - 1, s);
-			maxScore += max;
-
 			if (s >= secondLength) {
-				// Increase score based on remaining missing characters multiplied by the complement of the match percentage with a 0.05 offset up to this point
-				score += max * (maxLength - secondLength) * 1.05D - (maxScore - score) / maxScore;
+				// Increase score based on remaining missing characters multiplied by the complement of the match percentage with a 0.5 offset up to this point
+				int maxRemaining = max * (maxLength - secondLength);
+				score += maxRemaining * (1.5D - (maxScore - score) / maxScore);
+				maxScore += maxRemaining;
+
 				break;
 			}
+
+			maxScore += max;
 
 			char secondChar = Character.toLowerCase(second.charAt(s));
 			if (s < firstLength) {

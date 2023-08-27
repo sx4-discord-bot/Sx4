@@ -34,7 +34,7 @@ public class SteamGameCache {
 	}
 
 	public List<Document> getGames(String name) {
-		QueryMatches<Document> matches = new QueryMatches<>(name, 25);
+		QueryMatches<Document> matches = new QueryMatches<>(name, 60);
 		for (Document game : this.games) {
 			matches.addValue(game, game.getString("name"));
 		}
