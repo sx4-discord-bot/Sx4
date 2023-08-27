@@ -116,7 +116,6 @@ public class SteamCommand extends Sx4Command {
 			.setAuthor("Steam Search", null, "https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Steam_icon_logo.svg/2000px-Steam_icon_logo.svg.png")
 			.setIncreasedIndex(true)
 			.setAutoSelect(true)
-			.setTimeout(60)
 			.setDisplayFunction(game -> game.getString("name"))
 			.build();
 
