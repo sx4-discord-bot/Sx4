@@ -32,6 +32,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.*;
@@ -346,6 +347,40 @@ public class FreeGameManager implements WebhookManager {
 		});
 	}
 
+	private GOGFreeGame getGOGGameFromData(org.jsoup.nodes.Document document, String url, OffsetDateTime end, String image) {
+		Element element = document.getElementsByAttributeValue("type", "application/ld+json").first();
+		Document data = Document.parse(element.html());
+
+		int id = Integer.parseInt(data.getString("sku"));
+
+		Document offers = data.get("offers", Document.class);
+		String priceText = offers.getString("price");
+
+		int price = (int) (Double.parseDouble(priceText) * 100);
+
+		Element titleElement = document.getElementsByClass("productcard-basics__title").first();
+		String title = titleElement.text();
+
+		Element descriptionElement = document.getElementsByClass("description").first();
+		String description = descriptionElement.textNodes().get(0).text();
+
+		Elements infoElements = document.getElementsByClass("table__row details__rating details__row ");
+
+		String publisher = infoElements.stream()
+			.filter(infoElement -> {
+				Element labelElement = infoElement.getElementsByClass("details__category table__row-label").first();
+				return labelElement.text().contains("Company:");
+			})
+			.map(infoElement -> infoElement.getElementsByClass("details__content table__row-content").first())
+			.flatMap(publishers -> publishers.children().stream())
+			.filter(publisherElement -> publisherElement.attr("href").contains("publishers"))
+			.map(Element::text)
+			.findFirst()
+			.orElse(null);
+
+		return GOGFreeGame.fromData(id, title, description, publisher, url, price, end, image);
+	}
+
 	public CompletableFuture<List<GOGFreeGame>> retrieveFreeGOGGames() {
 		Request resultRequest = new Request.Builder()
 			.url("https://gog.com/en")
@@ -356,26 +391,20 @@ public class FreeGameManager implements WebhookManager {
 		this.bot.getHttpClient().newCall(resultRequest).enqueue((HttpCallback) resultResponse -> {
 			org.jsoup.nodes.Document resultsDocument = Jsoup.parse(resultResponse.body().string());
 
-			Elements spots = resultsDocument.getElementsByClass("big-spot");
-			if (spots.isEmpty()) {
-				return;
-			}
-
 			List<CompletableFuture<GOGFreeGame>> futures = new ArrayList<>();
-			for (Element spot : spots) {
-				Element priceElement = spot.getElementsByClass("big-spot__price-amount").first();
-				if (priceElement == null || !priceElement.text().equals("0.00")) {
-					continue;
-				}
 
-				String url = spot.attr("href");
+			Element giveawayElement = resultsDocument.getElementsByAttribute("giveaway-banner").first();
+			if (giveawayElement != null) {
+				String url = giveawayElement.attr("ng-href");
 
-				Element countdown = spot.getElementsByTag("gog-countdown-timer").first();
-				OffsetDateTime end = OffsetDateTime.parse(countdown.attr("end-date"));
+				Element countdownElement = giveawayElement.getElementsByClass("giveaway-banner__countdown-timer").first();
+				OffsetDateTime end = OffsetDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(countdownElement.attr("end-date"))), ZoneOffset.UTC);
 
-				Element imageElement = spot.getElementsByAttributeValue("type", "image/png").first();
-				String imageSource = imageElement.attr("lazy-srcset");
-				String image = "https:" + imageSource.substring(0, imageSource.indexOf(',')).trim();
+				Element imageElement = giveawayElement.getElementsByAttributeValue("type", "image/png").first();
+				String imageSource = imageElement.attr("srcset");
+
+				int commaIndex = imageSource.indexOf(',');
+				String image = imageSource.substring(0, commaIndex - 3);
 
 				Request gameRequest = new Request.Builder()
 					.url("https://gog.com" + url)
@@ -386,37 +415,7 @@ public class FreeGameManager implements WebhookManager {
 				this.bot.getHttpClient().newCall(gameRequest).enqueue((HttpCallback) gameResponse -> {
 					org.jsoup.nodes.Document gameDocument = Jsoup.parse(gameResponse.body().string());
 
-					Element element = gameDocument.getElementsByAttributeValue("type", "application/ld+json").first();
-					Document data = Document.parse(element.html());
-
-					int id = Integer.parseInt(data.getString("sku"));
-
-					Document offers = data.get("offers", Document.class);
-					String priceText = offers.getString("price");
-
-					int price = (int) (Double.parseDouble(priceText) * 100);
-
-					Element titleElement = gameDocument.getElementsByClass("productcard-basics__title").first();
-					String title = titleElement.text();
-
-					Element descriptionElement = gameDocument.getElementsByClass("description").first();
-					String description = descriptionElement.textNodes().get(0).text();
-
-					Elements infoElements = gameDocument.getElementsByClass("table__row details__rating details__row ");
-
-					String publisher = infoElements.stream()
-						.filter(infoElement -> {
-							Element labelElement = infoElement.getElementsByClass("details__category table__row-label").first();
-							return labelElement.text().contains("Company:");
-						})
-						.map(infoElement -> infoElement.getElementsByClass("details__content table__row-content").first())
-						.flatMap(publishers -> publishers.children().stream())
-						.filter(publisherElement -> publisherElement.attr("href").contains("publishers"))
-						.map(Element::text)
-						.findFirst()
-						.orElse(null);
-
-					GOGFreeGame game = GOGFreeGame.fromData(id, title, description, publisher, url, price, end, image);
+					GOGFreeGame game = this.getGOGGameFromData(gameDocument, url, end, "https:" + image.trim());
 					if (this.isAnnounced(game)) {
 						gameFuture.complete(null);
 						return;
@@ -426,6 +425,45 @@ public class FreeGameManager implements WebhookManager {
 				});
 
 				futures.add(gameFuture);
+			}
+
+			Elements spots = resultsDocument.getElementsByClass("big-spot");
+			if (!spots.isEmpty()) {
+				for (Element spot : spots) {
+					Element priceElement = spot.getElementsByClass("big-spot__price-amount").first();
+					if (priceElement == null || !priceElement.text().equals("0.00")) {
+						continue;
+					}
+
+					String url = spot.attr("href");
+
+					Element countdown = spot.getElementsByTag("gog-countdown-timer").first();
+					OffsetDateTime end = OffsetDateTime.parse(countdown.attr("end-date"));
+
+					Element imageElement = spot.getElementsByAttributeValue("type", "image/png").first();
+					String imageSource = imageElement.attr("lazy-srcset");
+					String image = "https:" + imageSource.substring(0, imageSource.indexOf(',')).trim();
+
+					Request gameRequest = new Request.Builder()
+						.url("https://gog.com" + url)
+						.addHeader("Cookie", "gog_lc=GB_GBP_en-US")
+						.build();
+
+					CompletableFuture<GOGFreeGame> gameFuture = new CompletableFuture<>();
+					this.bot.getHttpClient().newCall(gameRequest).enqueue((HttpCallback) gameResponse -> {
+						org.jsoup.nodes.Document gameDocument = Jsoup.parse(gameResponse.body().string());
+
+						GOGFreeGame game = this.getGOGGameFromData(gameDocument, url, end, image);
+						if (this.isAnnounced(game)) {
+							gameFuture.complete(null);
+							return;
+						}
+
+						gameFuture.complete(game);
+					});
+
+					futures.add(gameFuture);
+				}
 			}
 
 			FutureUtility.allOf(futures, Objects::nonNull).thenAccept(future::complete);

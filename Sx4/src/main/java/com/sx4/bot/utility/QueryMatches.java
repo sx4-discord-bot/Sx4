@@ -76,7 +76,7 @@ public class QueryMatches<Type> {
 			}
 
 			QueryMatch<?> that = (QueryMatch<?>) other;
-			return Objects.equals(value, that.value);
+			return Objects.equals(this.value, that.value);
 		}
 
 		public int compareTo(QueryMatch<T> other) {
