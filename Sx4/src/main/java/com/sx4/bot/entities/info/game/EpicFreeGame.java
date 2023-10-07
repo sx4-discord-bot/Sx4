@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Collections;
 import java.util.List;
 
 public class EpicFreeGame extends FreeGame<String> {
@@ -48,7 +49,7 @@ public class EpicFreeGame extends FreeGame<String> {
 		String description = data.getString("description");
 		String offerType = data.getString("offerType");
 		String publisher = data.getEmbedded(List.of("seller", "name"), String.class);
-		String url = data.get("catalogNs", Document.class).getList("mappings", Document.class).stream()
+		String url = data.get("catalogNs", Document.class).getList("mappings", Document.class, Collections.emptyList()).stream()
 			.filter(d -> d.getString("pageType").equals("productHome"))
 			.map(d -> d.getString("pageSlug"))
 			.findFirst()

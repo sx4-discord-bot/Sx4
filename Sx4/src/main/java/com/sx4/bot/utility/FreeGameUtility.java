@@ -82,25 +82,23 @@ public class FreeGameUtility {
 		});
 	}
 
+	private static boolean getValidFreeGames(Document game, Function<Document, Document> offerFunction) {
+		Document price = game.getEmbedded(List.of("price", "totalPrice"), Document.class);
+
+		Document offer = offerFunction.apply(game);
+		return (offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0);
+	}
+
 	public static void retrieveFreeGames(OkHttpClient client, Consumer<List<EpicFreeGame>> consumer) {
-		FreeGameUtility.retrieveFreeGames(client, game -> {
-			Document offer = FreeGameUtility.getBestPromotionalOffer(game);
-			return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
-		}, consumer);
+		FreeGameUtility.retrieveFreeGames(client, game -> FreeGameUtility.getValidFreeGames(game, FreeGameUtility::getBestPromotionalOffer), consumer);
 	}
 
 	public static void retrieveCurrentFreeGames(OkHttpClient client, Consumer<List<EpicFreeGame>> consumer) {
-		FreeGameUtility.retrieveFreeGames(client, game -> {
-			Document offer = FreeGameUtility.getCurrentPromotionalOffer(game);
-			return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
-		}, consumer);
+		FreeGameUtility.retrieveFreeGames(client, game -> FreeGameUtility.getValidFreeGames(game, FreeGameUtility::getCurrentPromotionalOffer), consumer);
 	}
 
 	public static void retrieveUpcomingFreeGames(OkHttpClient client, Consumer<List<EpicFreeGame>> consumer) {
-		FreeGameUtility.retrieveFreeGames(client, game -> {
-			Document offer = FreeGameUtility.getUpcomingPromotionalOffer(game);
-			return offer != null && offer.getEmbedded(List.of("discountSetting", "discountPercentage"), Integer.class) == 0;
-		}, consumer);
+		FreeGameUtility.retrieveFreeGames(client, game -> FreeGameUtility.getValidFreeGames(game, FreeGameUtility::getUpcomingPromotionalOffer), consumer);
 	}
 
 	public static FreeGame<?> getFreeGame(Document data) {
