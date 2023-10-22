@@ -78,6 +78,7 @@ public class ConnectionHandler implements EventListener {
 			ExceptionUtility.safeRun(this.bot.getFreeGameManager()::ensureEpicFreeGames);
 			ExceptionUtility.safeRun(this.bot.getFreeGameManager()::ensureSteamFreeGames);
 			ExceptionUtility.safeRun(this.bot.getFreeGameManager()::ensureGOGFreeGames);
+			ExceptionUtility.safeRun(this.bot.getEntitlementsHandler()::ensureEntitlements);
 
 			if (this.bot.getConfig().isMain()) {
 				ExceptionUtility.safeRun(this.bot.getPatreonManager()::ensurePatrons);

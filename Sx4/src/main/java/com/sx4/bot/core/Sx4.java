@@ -144,6 +144,7 @@ public class Sx4 {
 
 	private final LoggerHandler loggerHandler;
 	private final ConnectionHandler connectionHandler;
+	private final EntitlementsHandler entitlementsHandler;
 
 	/* Managers */
 	private final YouTubeManager youTubeManager;
@@ -203,6 +204,7 @@ public class Sx4 {
 		TwitchHandler twitchHandler = new TwitchHandler(this);
 		this.loggerHandler = new LoggerHandler(this);
 		this.connectionHandler = new ConnectionHandler(this);
+		this.entitlementsHandler = new EntitlementsHandler(this);
 
 		this.economyManager = new EconomyManager();
 		this.giveawayManager = new GiveawayManager(this);
@@ -261,7 +263,7 @@ public class Sx4 {
 		manager.register(new ButtonHandler(this));
 		manager.register(new ModalHandler(this));
 		manager.register(new SelectMenuHandler(this));
-		manager.register(new EntitlementsHandler(this));
+		manager.register(this.entitlementsHandler);
 		manager.register(this.messageCache);
 
 		this.shardManager = this.createShardManager(manager);
@@ -651,6 +653,10 @@ public class Sx4 {
 
 	public ConnectionHandler getConnectionHandler() {
 		return this.connectionHandler;
+	}
+
+	public EntitlementsHandler getEntitlementsHandler() {
+		return this.entitlementsHandler;
 	}
 
 	public ShardManager createShardManager(IEventManager manager) {
