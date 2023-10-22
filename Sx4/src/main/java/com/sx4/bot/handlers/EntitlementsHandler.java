@@ -73,7 +73,7 @@ public class EntitlementsHandler implements EventListener {
 				long guildId = data.getLong("guild_id");
 				OffsetDateTime ends = data.getOffsetDateTime("ends_at");
 
-				bulkData.add(new UpdateOneModel<>(Filters.eq("guildId", guildId), Updates.set("premium.endAt", ends.toEpochSecond())));
+				bulkData.add(new UpdateOneModel<>(Filters.eq("_id", guildId), Updates.set("premium.endAt", ends.toEpochSecond())));
 			}
 
 			if (!bulkData.isEmpty()) {
