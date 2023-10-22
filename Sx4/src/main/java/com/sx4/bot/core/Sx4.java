@@ -261,6 +261,7 @@ public class Sx4 {
 		manager.register(new ButtonHandler(this));
 		manager.register(new ModalHandler(this));
 		manager.register(new SelectMenuHandler(this));
+		manager.register(new EntitlementsHandler(this));
 		manager.register(this.messageCache);
 
 		this.shardManager = this.createShardManager(manager);
@@ -656,6 +657,7 @@ public class Sx4 {
 		try {
 			return DefaultShardManagerBuilder.create(this.config.getToken(), GatewayIntent.getIntents(38606))
 				.setBulkDeleteSplittingEnabled(false)
+				.setRawEventsEnabled(true)
 				.setEventManagerProvider(shardId -> manager)
 				.setActivity(Activity.watching("s?help"))
 				.build();
