@@ -76,7 +76,9 @@ public class EntitlementsHandler implements EventListener {
 				bulkData.add(new UpdateOneModel<>(Filters.eq("guildId", guildId), Updates.set("premium.endAt", ends.toEpochSecond())));
 			}
 
-			this.bot.getMongo().bulkWriteGuilds(bulkData).whenComplete(MongoDatabase.exceptionally());
+			if (!bulkData.isEmpty()) {
+				this.bot.getMongo().bulkWriteGuilds(bulkData).whenComplete(MongoDatabase.exceptionally());
+			}
 		});
 	}
 
