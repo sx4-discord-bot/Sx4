@@ -13,13 +13,9 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class FormatterCommand extends Sx4Command {
@@ -46,8 +42,14 @@ public class FormatterCommand extends Sx4Command {
 	private String getFunctionString(FormatterFunction<?> function) {
 		String parameters = Arrays.stream(function.getMethod().getParameters())
 			.skip(1)
-			.map(Parameter::getType)
-			.map(Class::getSimpleName)
+			.map(parameter -> {
+				Class<?> clazz = parameter.getType();
+				if (clazz == Optional.class) {
+					return ((Class<?>) ClassUtility.getParameterTypes(parameter)[0]).getSimpleName() + "?";
+				}
+
+				return clazz.getSimpleName();
+			})
 			.collect(Collectors.joining(", "));
 
 		return function.getName() + "(" + parameters + ")";
