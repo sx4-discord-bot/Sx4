@@ -3,12 +3,12 @@ package com.sx4.bot.entities.trigger;
 public enum TriggerActionType {
 
 	REQUEST(0, 2),
-	SEND_MESSAGE(1, 1),
+	SEND_MESSAGE(1, 2),
 	ADD_REACTION(2, 1),
-	EXECUTE_COMMAND(3, 1),
-	SEND_PAGED_MESSAGE(4, 1);
+	EXECUTE_COMMAND(3, 2),
+	SEND_PAGED_MESSAGE(4, 2);
 
-	public static final int MAX_ACTIONS = 3;
+	public static final int MAX_ACTIONS = 6;
 
 	private final int id, maxActions;
 
