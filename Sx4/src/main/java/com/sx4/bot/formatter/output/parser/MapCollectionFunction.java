@@ -17,13 +17,16 @@ public class MapCollectionFunction extends FormatterFunction<Collection> {
 	public List<?> parse(FormatterEvent<Collection<?>> event, String lambda) {
 		Collection<?> collection = event.getObject();
 
+		int i = 0;
 		List<Object> newList = new ArrayList<>();
 		for (Object element : collection) {
 			event.getManager().addVariable("this", element);
+			event.getManager().addVariable("index", i++);
 			newList.add(Formatter.toObject(lambda, Object.class, event.getManager()));
 		}
 
 		event.getManager().removeVariable("this");
+		event.getManager().removeVariable("index");
 
 		return newList;
 	}
