@@ -60,7 +60,7 @@ public class CustomButtonId extends CustomInteractionId {
 	public static CustomButtonId fromId(String id) {
 		String[] split = id.split(":");
 		if (split.length < 3) {
-			throw new IllegalArgumentException("Invalid custom id");
+			return null;
 		}
 
 		String[] splitOwners = split[1].split(",");
