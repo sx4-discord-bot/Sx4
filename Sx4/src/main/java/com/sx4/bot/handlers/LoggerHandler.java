@@ -986,7 +986,7 @@ public class LoggerHandler implements EventListener {
 
 	// Permission overrides in raw form in audit logs can be both ints and strings
 	private long getOverridePermissionRaw(Object value) {
-		return value instanceof Integer ? ((Integer) value).longValue() : Long.parseLong((String) value);
+		return value instanceof Integer ? ((Integer) value).longValue() : value instanceof Long ? (long) value : Long.parseLong((String) value);
 	}
 
 	public void onPermissionOverrideCreate(PermissionOverrideCreateEvent event) throws ExecutionException, InterruptedException {
