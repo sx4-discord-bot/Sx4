@@ -1,8 +1,5 @@
 package com.sx4.bot.managers;
 
-import club.minnced.discord.webhook.send.WebhookEmbed;
-import club.minnced.discord.webhook.send.WebhookMessage;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
@@ -14,12 +11,18 @@ import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.requests.RestConfig;
+import net.dv8tion.jda.api.utils.data.DataObject;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
+import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -36,12 +39,12 @@ public class LoggerManager {
 
         private final long guildId;
         private final long channelId;
-        private final List<WebhookEmbed> embeds;
+        private final List<MessageEmbed> embeds;
         private final Document logger;
 
         private int attempts = 0;
 
-        public Request(JDA jda, long guildId, long channelId, List<WebhookEmbed> embeds, Document logger) {
+        public Request(JDA jda, long guildId, long channelId, List<MessageEmbed> embeds, Document logger) {
             this.jda = jda;
             this.guildId = guildId;
             this.channelId = channelId;
@@ -83,7 +86,7 @@ public class LoggerManager {
             return guild.getChannelById(GuildMessageChannelUnion.class, this.channelId);
         }
 
-        public List<WebhookEmbed> getEmbeds() {
+        public List<MessageEmbed> getEmbeds() {
             return this.embeds;
         }
 
@@ -208,18 +211,18 @@ public class LoggerManager {
 
             WebhookChannel webhookChannel = new WebhookChannel(channel);
 
-            List<WebhookEmbed> embeds = new ArrayList<>(request.getEmbeds());
-            int length = MessageUtility.getWebhookEmbedLength(embeds);
+            List<MessageEmbed> embeds = new ArrayList<>(request.getEmbeds());
+            int length = MessageUtility.getEmbedLength(embeds);
 
             List<Request> requests = new ArrayList<>();
             requests.add(request);
 
             Request nextRequest;
             while ((nextRequest = this.queue.peek()) != null) {
-                List<WebhookEmbed> nextEmbeds = nextRequest.getEmbeds();
-                int nextLength = MessageUtility.getWebhookEmbedLength(nextEmbeds);
+                List<MessageEmbed> nextEmbeds = nextRequest.getEmbeds();
+                int nextLength = MessageUtility.getEmbedLength(nextEmbeds);
 
-                if (embeds.size() + nextEmbeds.size() > WebhookMessage.MAX_EMBEDS || length + nextLength > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
+                if (embeds.size() + nextEmbeds.size() > Message.MAX_EMBED_COUNT || length + nextLength > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
                     break;
                 }
 
@@ -232,10 +235,8 @@ public class LoggerManager {
             Document webhookData = logger.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
             boolean premium = logger.getBoolean("premium");
 
-            WebhookMessage message = new WebhookMessageBuilder()
+            MessageCreateData message = new MessageCreateBuilder()
                 .addEmbeds(embeds)
-                .setUsername(premium ? webhookData.get("name", "Sx4 - Logger") : "Sx4 - Logger")
-                .setAvatarUrl(premium ? webhookData.get("avatar", request.getJDA().getSelfUser().getEffectiveAvatarUrl()) : request.getJDA().getSelfUser().getEffectiveAvatarUrl())
                 .build();
 
             if (this.webhook == null) {
@@ -252,9 +253,13 @@ public class LoggerManager {
                 }
             }
 
+            DataObject data = message.toData()
+                .put("username", premium ? webhookData.get("name", "Sx4 - Logger") : "Sx4 - Logger")
+                .put("avatar_url", premium ? webhookData.get("avatar", request.getJDA().getSelfUser().getEffectiveAvatarUrl()) : request.getJDA().getSelfUser().getEffectiveAvatarUrl());
+
             okhttp3.Request httpRequest = new okhttp3.Request.Builder()
                 .url(this.webhook)
-                .post(message.getBody())
+                .post(RequestBody.create(data.toString(), MediaType.parse("application/json")))
                 .build();
 
             Response response = this.client.newCall(httpRequest).execute();
@@ -330,13 +335,13 @@ public class LoggerManager {
         }
     }
 
-    public void queue(GuildMessageChannelUnion channel, Document logger, List<WebhookEmbed> embeds) {
+    public void queue(GuildMessageChannelUnion channel, Document logger, List<MessageEmbed> embeds) {
         List<Request> requests = new ArrayList<>();
 
         int index = 0;
         while (index != embeds.size()) {
-            List<WebhookEmbed> splitEmbeds = new ArrayList<>(embeds.subList(index, Math.min(index + 10, embeds.size())));
-            while (MessageUtility.getWebhookEmbedLength(splitEmbeds) > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
+            List<MessageEmbed> splitEmbeds = new ArrayList<>(embeds.subList(index, Math.min(index + 10, embeds.size())));
+            while (MessageUtility.getEmbedLength(splitEmbeds) > MessageEmbed.EMBED_MAX_LENGTH_BOT) {
                 splitEmbeds.remove(splitEmbeds.size() - 1);
             }
 

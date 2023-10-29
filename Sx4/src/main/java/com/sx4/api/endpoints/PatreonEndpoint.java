@@ -1,9 +1,5 @@
 package com.sx4.api.endpoints;
 
-import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.WebhookClientBuilder;
-import club.minnced.discord.webhook.send.WebhookMessage;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.events.patreon.PatreonEvent;
@@ -12,6 +8,11 @@ import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Response;
+import net.dv8tion.jda.api.entities.IncomingWebhookClient;
+import net.dv8tion.jda.api.entities.WebhookClient;
+import net.dv8tion.jda.api.utils.FileUpload;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.bson.Document;
 
 import java.nio.charset.StandardCharsets;
@@ -24,14 +25,12 @@ public class PatreonEndpoint {
 
 	private final Sx4 bot;
 
-	private final WebhookClient webhook;
+	private final IncomingWebhookClient webhook;
 
 	public PatreonEndpoint(Sx4 bot) {
 		this.bot = bot;
 
-		this.webhook = new WebhookClientBuilder(this.bot.getConfig().getPatreonWebhookId(), this.bot.getConfig().getPatreonWebhookToken())
-			.setHttpClient(this.bot.getHttpClient())
-			.build();
+		this.webhook = WebhookClient.createClient(this.bot.getShardManager().getShards().get(0), Long.toString(this.bot.getConfig().getPatreonWebhookId()), this.bot.getConfig().getPatreonWebhookToken());
 	}
 	
 	@POST
@@ -50,12 +49,12 @@ public class PatreonEndpoint {
 		
 		Document document = Document.parse(body);
 
-		WebhookMessage message = new WebhookMessageBuilder()
+		MessageCreateData message = new MessageCreateBuilder()
 			.setContent("Patreon payload received")
-			.addFile("patreon.json", document.toJson(MongoDatabase.PRETTY_JSON).getBytes(StandardCharsets.UTF_8))
+			.addFiles(FileUpload.fromData(document.toJson(MongoDatabase.PRETTY_JSON).getBytes(StandardCharsets.UTF_8), "patreon.json"))
 			.build();
 
-		this.webhook.send(message);
+		this.webhook.sendMessage(message).queue();
 
 		int totalAmount = document.getEmbedded(List.of("data", "attributes", "lifetime_support_cents"), 0);
 		if (totalAmount == 0) {

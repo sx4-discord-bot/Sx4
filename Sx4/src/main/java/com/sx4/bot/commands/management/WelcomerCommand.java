@@ -27,7 +27,6 @@ import com.sx4.bot.formatter.output.function.FormatterVariable;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.WelcomerManager;
 import com.sx4.bot.utility.ExceptionUtility;
-import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.RequestUtility;
 import com.sx4.bot.utility.WelcomerUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -284,7 +283,7 @@ public class WelcomerCommand extends Sx4Command {
 				return;
 			}
 
-			event.reply( MessageUtility.fromWebhookMessage(builder.build())).queue();
+			event.reply(builder.build()).queue();
 		});
 	}
 

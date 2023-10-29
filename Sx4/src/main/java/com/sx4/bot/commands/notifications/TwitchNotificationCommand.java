@@ -529,7 +529,7 @@ public class TwitchNotificationCommand extends Sx4Command {
 				.parse();
 
 			try {
-				event.reply(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(message, true).build())).queue();
+				event.reply(MessageUtility.fromCreateJson(message, true).build()).queue();
 			} catch (IllegalArgumentException e) {
 				event.replyFailure(e.getMessage()).queue();
 			}

@@ -705,6 +705,10 @@ public class ButtonHandler implements EventListener {
 		}
 
 		CustomButtonId customId = CustomButtonId.fromId(buttonId);
+		if (customId == null) {
+			return;
+		}
+
 		if (customId.isExpired()) {
 			this.reply(event, "This button has expired :stopwatch:", action -> action.setEphemeral(true)).queue();
 			return;

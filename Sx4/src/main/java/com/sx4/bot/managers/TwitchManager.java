@@ -1,24 +1,25 @@
 package com.sx4.bot.managers;
 
-import club.minnced.discord.webhook.exception.HttpException;
-import club.minnced.discord.webhook.send.WebhookMessage;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndDeleteOptions;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.entities.twitch.TwitchSubscriptionType;
-import com.sx4.bot.entities.webhook.ReadonlyMessage;
+import com.sx4.bot.entities.webhook.SentWebhookMessage;
 import com.sx4.bot.entities.webhook.WebhookChannel;
-import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.events.twitch.TwitchEvent;
 import com.sx4.bot.events.twitch.TwitchStreamStartEvent;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import com.sx4.bot.hooks.TwitchListener;
 import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.WebhookClient;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.restaction.WebhookMessageCreateAction;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import org.bson.Document;
@@ -27,10 +28,8 @@ import org.bson.conversions.Bson;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
-public class TwitchManager {
+public class TwitchManager implements WebhookManager {
 
 	public static final Document DEFAULT_MESSAGE = new Document("embed",
 		new Document("title", "{streamer.name} is now live!")
@@ -48,10 +47,7 @@ public class TwitchManager {
 
 	private final List<TwitchListener> listeners;
 
-	private final Map<Long, WebhookClient> webhooks;
-
-	private final OkHttpClient client = new OkHttpClient();
-	private final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+	private final Map<Long, WebhookClient<Message>> webhooks;
 
 	public TwitchManager(Sx4 bot) {
 		this.listeners = new ArrayList<>();
@@ -59,15 +55,15 @@ public class TwitchManager {
 		this.bot = bot;
 	}
 
-	public WebhookClient getWebhook(long id) {
+	public WebhookClient<Message> getWebhook(long id) {
 		return this.webhooks.get(id);
 	}
 
-	public WebhookClient removeWebhook(long id) {
+	public WebhookClient<Message> removeWebhook(long id) {
 		return this.webhooks.remove(id);
 	}
 
-	public void putWebhook(long id, WebhookClient webhook) {
+	public void putWebhook(long id, WebhookClient<Message> webhook) {
 		this.webhooks.put(id, webhook);
 	}
 
@@ -151,15 +147,13 @@ public class TwitchManager {
 		this.subscribe(streamerId, TwitchSubscriptionType.ONLINE);
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(WebhookChannel channel, WebhookMessage message) {
+	private CompletableFuture<SentWebhookMessage> createWebhook(WebhookChannel channel, Document webhookData, MessageCreateData message, boolean premium) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
 		}
 
 		return channel.createWebhook("Sx4 - Twitch").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = channel.getWebhookClient(webhook.getIdLong(), webhook.getToken(), this.scheduledExecutor, this.client);
-
-			this.webhooks.put(channel.getIdLong(), webhookClient);
+			this.webhooks.put(channel.getIdLong(), webhook);
 
 			Bson update = Updates.combine(
 				Updates.set("webhook.id", webhook.getIdLong()),
@@ -168,43 +162,51 @@ public class TwitchManager {
 
 			long webhookChannelId = channel.getWebhookChannel().getIdLong();
 
+			WebhookMessageCreateAction<Message> action = webhook.sendMessage(message)
+				.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getConfig().getTwitchAvatar()) : this.bot.getConfig().getTwitchAvatar())
+				.setUsername(premium ? webhookData.get("name", "Sx4 - Twitch") : "Sx4 - Twitch");
+
 			return this.bot.getMongo().updateManyTwitchNotifications(Filters.or(Filters.eq("channelId", webhookChannelId), Filters.eq("webhook.channelId", webhookChannelId)), update)
-				.thenCompose(result -> webhookClient.send(message))
-				.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
+				.thenCompose(result -> channel.sendWebhookMessage(action))
+				.thenApply(webhookMessage -> new SentWebhookMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
 		}).exceptionallyCompose(exception -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-			if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+			if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());
 
-				return this.createWebhook(channel, message);
+				return this.createWebhook(channel, webhookData, message, premium);
 			}
 
 			return CompletableFuture.failedFuture(exception);
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendTwitchNotification(WebhookChannel channel, Document webhookData, WebhookMessage message) {
+	public CompletableFuture<SentWebhookMessage> sendTwitchNotification(WebhookChannel channel, Document webhookData, MessageCreateData message, boolean premium) {
 		long channelId = channel.getIdLong();
 
-		WebhookClient webhook;
+		WebhookClient<Message> webhook;
 		if (this.webhooks.containsKey(channelId)) {
 			webhook = this.webhooks.get(channelId);
 		} else if (!webhookData.containsKey("id")) {
-			return this.createWebhook(channel, message);
+			return this.createWebhook(channel, webhookData, message, premium);
 		} else {
-			webhook = channel.getWebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.scheduledExecutor, this.client);
+			webhook = WebhookClient.createClient(channel.getJDA(), Long.toString(webhookData.getLong("id")), webhookData.getString("token"));
 
 			this.webhooks.put(channelId, webhook);
 		}
 
-		return webhook.send(message)
-			.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getId(), webhook.getToken()))
+		WebhookMessageCreateAction<Message> action = webhook.sendMessage(message)
+			.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getConfig().getTwitchAvatar()) : this.bot.getConfig().getTwitchAvatar())
+			.setUsername(premium ? webhookData.get("name", "Sx4 - Twitch") : "Sx4 - Twitch");
+
+		return channel.sendWebhookMessage(action)
+			.thenApply(webhookMessage -> new SentWebhookMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()))
 			.exceptionallyCompose(exception -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+				if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 404) {
 					this.webhooks.remove(channelId);
 
-					return this.createWebhook(channel, message);
+					return this.createWebhook(channel, webhookData, message, premium);
 				}
 
 				return CompletableFuture.failedFuture(exception);

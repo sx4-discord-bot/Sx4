@@ -1,6 +1,5 @@
 package com.sx4.bot.commands.management;
 
-import club.minnced.discord.webhook.WebhookClient;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
@@ -25,7 +24,9 @@ import com.sx4.bot.entities.webhook.WebhookChannel;
 import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.WebhookClient;
 import net.dv8tion.jda.api.entities.channel.attribute.IWebhookContainer;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
@@ -172,9 +173,9 @@ public class ModLogCommand extends Sx4Command {
 					return;
 				}
 
-				WebhookClient webhook = event.getBot().getModLogManager().getWebhook(data.getLong("channelId"));
+				WebhookClient<Message> webhook = event.getBot().getModLogManager().getWebhook(data.getLong("channelId"));
 				if (webhook != null) {
-					webhook.delete(data.getLong("messageId"));
+					webhook.deleteMessageById(data.getLong("messageId")).queue();
 				}
 
 				event.replySuccess("That mod log has been deleted").queue();

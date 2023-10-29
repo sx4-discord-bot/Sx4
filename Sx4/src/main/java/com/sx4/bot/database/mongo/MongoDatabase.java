@@ -141,7 +141,7 @@ public class MongoDatabase {
 		this.warnings.createIndex(Indexes.descending("guildId"));
 
 		this.triggers = this.database.getCollection("triggers");
-		this.triggers.createIndex(Indexes.descending("guildId", "trigger"), uniqueIndex);
+		this.triggers.createIndex(Indexes.descending("guildId", "trigger", "type"), uniqueIndex);
 		this.triggers.createIndex(Indexes.descending("guildId"));
 		this.database.runCommand(new Document("collMod", "triggers").append("changeStreamPreAndPostImages", new Document("enabled", true)));
 

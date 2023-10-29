@@ -25,6 +25,7 @@ import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.entities.emoji.EmojiUnion;
+import net.dv8tion.jda.api.events.interaction.component.GenericComponentInteractionCreateEvent;
 import net.dv8tion.jda.api.requests.Route;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.EncodingUtil;
@@ -42,6 +43,10 @@ import java.util.stream.Collectors;
 public class TriggerUtility {
 
 	public static List<CompletableFuture<Void>> executeActions(Document trigger, Sx4 bot, FormatterManager manager, Message message) {
+		return TriggerUtility.executeActions(trigger, bot, manager, message, null);
+	}
+
+	public static List<CompletableFuture<Void>> executeActions(Document trigger, Sx4 bot, FormatterManager manager, Message message, GenericComponentInteractionCreateEvent event) {
 		GuildMessageChannel channel = message.getGuildChannel();
 
 		List<Document> actions = trigger.getList("actions", Document.class, Collections.emptyList()).stream()
@@ -62,6 +67,8 @@ public class TriggerUtility {
 				case ADD_REACTION -> new AddReactionTriggerAction(manager, actionData, message);
 				case EXECUTE_COMMAND -> new ExecuteCommandTriggerAction(manager, actionData, (Sx4CommandListener) bot.getCommandListener(), message);
 				case SEND_PAGED_MESSAGE -> new SendPagedMessageTriggerAction(bot, manager, actionData, channel, message.getAuthor());
+				case REPLY_MESSAGE -> new ReplyMessageTriggerAction(manager, actionData, event);
+				case EDIT_MESSAGE -> new EditMessageTriggerAction(manager, actionData, event);
 			};
 
 			if (actionData.containsKey("order")) {
@@ -127,7 +134,7 @@ public class TriggerUtility {
 			return CompletableFuture.failedFuture(new IllegalArgumentException("`channelId` supplied is not a valid channel"));
 		}
 
-		return messageChannel.sendMessage(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(action.get("response", Document.class), true).build())).setAllowedMentions(EnumSet.allOf(Message.MentionType.class)).submit()
+		return messageChannel.sendMessage(MessageUtility.fromCreateJson(action.get("response", Document.class), true).build()).setAllowedMentions(EnumSet.allOf(Message.MentionType.class)).submit()
 			.thenAccept(message -> manager.addVariable(action.get("variable", "message"), message));
 	}
 
@@ -188,7 +195,7 @@ public class TriggerUtility {
 				manager.removeVariable("values");
 				manager.removeVariable("value");
 
-				return MessageUtility.fromWebhookMessageAsBuilder(MessageUtility.fromJson(data, true).build());
+				return MessageUtility.fromCreateJson(data, true);
 			});
 		}
 
@@ -522,6 +529,49 @@ public class TriggerUtility {
 			if (channelId != null) {
 				action.append("channelId", channelId);
 			}
+		} else if (type == TriggerActionType.REPLY_MESSAGE) {
+			Object response = data.get("response");
+			if (!(response instanceof Document)) {
+				throw new IllegalArgumentException("`response` field has to be json");
+			}
+
+			MessageUtility.removeFields((Document) response);
+			if (!MessageUtility.isValid((Document) response, false)) {
+				throw new IllegalArgumentException("`response` field was not valid message json");
+			}
+
+			action.append("response", response);
+		} else if (type == TriggerActionType.EDIT_MESSAGE) {
+			Object editData = data.get("data");
+			if (!(editData instanceof Document)) {
+				throw new IllegalArgumentException("`data` field has to be a json object");
+			}
+
+			MessageUtility.removeFields((Document) editData);
+			if (!MessageUtility.isValid((Document) editData, false)) {
+				throw new IllegalArgumentException("`data` field was not valid message json");
+			}
+
+			action.append("data", editData);
+
+			Object replace = data.get("replace");
+			if (replace != null && !(replace instanceof Boolean)) {
+				throw new IllegalArgumentException("`replace` field has to be a boolean");
+			}
+
+			if (replace != null) {
+				action.append("replace", replace);
+			}
+
+			Object combineEmbeds = data.get("combineEmbeds");
+			if (combineEmbeds != null && !(combineEmbeds instanceof Boolean)) {
+				throw new IllegalArgumentException("`combineEmbeds` field has to be a boolean");
+			}
+
+			if (combineEmbeds != null) {
+				action.append("combineEmbeds", combineEmbeds);
+			}
+
 		} else {
 			throw new IllegalArgumentException("That action type is not supported yet");
 		}

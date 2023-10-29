@@ -1,12 +1,9 @@
 package com.sx4.bot.entities.management;
 
-import club.minnced.discord.webhook.send.WebhookEmbed;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
-import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
@@ -156,38 +153,11 @@ public class Suggestion {
 	}
 
 	public MessageEmbed getEmbed(User moderator, User author, SuggestionState state) {
-		EmbedBuilder embed = new EmbedBuilder()
-			.setAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), null, author == null ? null : author.getEffectiveAvatarUrl())
-			.setDescription(this.suggestion)
-			.setFooter(String.format("%s | ID: %s", state.getName(), this.getHex()))
-			.setColor(state.getColour())
-			.setTimestamp(Instant.ofEpochSecond(this.getTimestamp()));
-
-		if (this.image != null) {
-			embed.setImage(this.image);
-		}
-
-		if (moderator != null) {
-			embed.addField("Moderator", moderator.getAsTag(), true);
-		}
-
-		if (this.reason != null) {
-			embed.addField("Reason", this.reason, true);
-		}
-
-		return embed.build();
+		return Suggestion.getEmbed(this.id, moderator, author, this.suggestion, this.image, this.reason, state);
 	}
 
 	public MessageEmbed getEmbed(ShardManager manager, SuggestionState state) {
 		return this.getEmbed(this.getModerator(manager), this.getAuthor(manager), state);
-	}
-
-	public WebhookEmbed getWebhookEmbed(User moderator, User author, SuggestionState state) {
-		return Suggestion.getWebhookEmbed(this.id, moderator, author, this.suggestion, this.image, this.reason, state);
-	}
-
-	public WebhookEmbed getWebhookEmbed(ShardManager manager, SuggestionState state) {
-		return this.getWebhookEmbed(this.getModerator(manager), this.getAuthor(manager), state);
 	}
 
 	public Document toData() {
@@ -221,24 +191,24 @@ public class Suggestion {
 		return new Suggestion(data);
 	}
 
-	public static WebhookEmbed getWebhookEmbed(ObjectId id, User moderator, User author, String suggestion, String image, String reason, SuggestionState state) {
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
-			.setAuthor(new EmbedAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), author == null ? null : author.getEffectiveAvatarUrl(), null))
+	public static MessageEmbed getEmbed(ObjectId id, User moderator, User author, String suggestion, String image, String reason, SuggestionState state) {
+		EmbedBuilder embed = new EmbedBuilder()
+			.setAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), null, author == null ? null : author.getEffectiveAvatarUrl())
 			.setDescription(suggestion)
-			.setFooter(new EmbedFooter(String.format("%s | ID: %s", state.getName(), id.toHexString()), null))
+			.setFooter(String.format("%s | ID: %s", state.getName(), id.toHexString()))
 			.setColor(state.getColour())
 			.setTimestamp(Instant.ofEpochSecond(id.getTimestamp()));
 
 		if (image != null) {
-			embed.setImageUrl(image);
+			embed.setImage(image);
 		}
 
 		if (moderator != null) {
-			embed.addField(new EmbedField(true, "Moderator", moderator.getAsTag()));
+			embed.addField("Moderator", moderator.getAsTag(), true);
 		}
 
 		if (reason != null) {
-			embed.addField(new EmbedField(true, "Reason", reason));
+			embed.addField("Reason", reason, true);
 		}
 
 		return embed.build();

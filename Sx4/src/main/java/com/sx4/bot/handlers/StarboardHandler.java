@@ -1,9 +1,5 @@
 package com.sx4.bot.handlers;
 
-import club.minnced.discord.webhook.send.WebhookEmbed;
-import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
-import club.minnced.discord.webhook.send.WebhookMessage;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.*;
@@ -17,6 +13,7 @@ import com.sx4.bot.managers.StarboardManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import com.sx4.bot.utility.StringUtility;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message.Attachment;
@@ -34,6 +31,8 @@ import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.requests.Route;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.internal.requests.RestActionImpl;
 import net.dv8tion.jda.internal.utils.EncodingUtil;
 import org.bson.Document;
@@ -54,7 +53,7 @@ public class StarboardHandler implements EventListener {
 		this.bot = bot;
 	}
 
-	private WebhookMessage getStarboardMessage(Document guildData, Document starboard, Guild guild, Member member, EmojiUnion emoji, boolean premium) {
+	private MessageCreateData getStarboardMessage(Document guildData, Document starboard, Guild guild, Member member, EmojiUnion emoji) {
 		List<Document> messages = guildData.getList("messages", Document.class, StarboardManager.DEFAULT_CONFIGURATION);
 
 		int stars = starboard.getInteger("count");
@@ -86,23 +85,19 @@ public class StarboardHandler implements EventListener {
 		String messageLink = "https://discord.com/channels/" + guild.getId() + "/" + channelId + "/" + starboard.getLong("originalMessageId");
 
 		// temporary while embed support isn't a thing
-		WebhookEmbedBuilder builder = new WebhookEmbedBuilder()
-			.setAuthor(new WebhookEmbed.EmbedAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), author == null ? null : author.getEffectiveAvatarUrl(), null))
+		EmbedBuilder builder = new EmbedBuilder()
+			.setAuthor(author == null ? "Anonymous#0000" : author.getAsTag(), null, author == null ? null : author.getEffectiveAvatarUrl())
 			.setColor(-21453)
-			.addField(new WebhookEmbed.EmbedField(false, "Message Link", "[Jump!](" + messageLink + ")"))
-			.setImageUrl(starboard.getString("image"));
+			.addField("Message Link", "[Jump!](" + messageLink + ")", false)
+			.setImage(starboard.getString("image"));
 
 		String content = starboard.getString("content");
 		if (content != null && !content.isBlank()) {
-			builder.addField(new WebhookEmbed.EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "[...](" + messageLink + ")")));
+			builder.addField("Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "[...](" + messageLink + ")"), false);
 		}
-
-		Document webhookData = guildData.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
 		try {
 			return this.format(messageData.get("message", Document.class), member, channel, emoji, stars, nextStars, starboard.getObjectId("_id"))
-				.setUsername(premium ? webhookData.get("name", "Sx4 - Starboard") : "Sx4 - Starboard")
-				.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl()) : this.bot.getShardManager().getShardById(0).getSelfUser().getEffectiveAvatarUrl())
 				.addEmbeds(builder.build())
 				.build();
 		} catch (IllegalArgumentException e) {
@@ -111,7 +106,7 @@ public class StarboardHandler implements EventListener {
 		}
 	}
 
-	private WebhookMessageBuilder format(Document message, Member member, MessageChannel channel, EmojiUnion emoji, int stars, int nextStars, ObjectId id) {
+	private MessageCreateBuilder format(Document message, Member member, MessageChannel channel, EmojiUnion emoji, int stars, int nextStars, ObjectId id) {
 		Formatter<Document> formatter = new JsonFormatter(message)
 			.member(member)
 			.user(member.getUser())
@@ -122,7 +117,7 @@ public class StarboardHandler implements EventListener {
 			.addVariable("stars.next.until", nextStars - stars)
 			.addVariable("id", id.toHexString());
 
-		return MessageUtility.fromJson(formatter.parse(), true);
+		return MessageUtility.fromCreateJson(formatter.parse(), true);
 	}
 
 	public void onMessageReactionAdd(MessageReactionAddEvent event) {
@@ -209,16 +204,16 @@ public class StarboardHandler implements EventListener {
 					FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER).upsert(true);
 					return this.bot.getMongo().findAndUpdateStarboard(Filters.eq("originalMessageId", messageId), update, options);
 				}).thenCompose(updatedData -> {
-					WebhookMessage webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emoji, data.getBoolean("premium"));
+					MessageCreateData webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emoji);
 					if (webhookMessage == null) {
 						return CompletableFuture.completedFuture(null);
 					}
 
 					if (updatedData.containsKey("messageId")) {
-						this.bot.getStarboardManager().editStarboard(updatedData.getLong("messageId"), channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
+						this.bot.getStarboardManager().editStarboard(updatedData.getLong("messageId"), new WebhookChannel(channel), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
 						return CompletableFuture.completedFuture(null); // return null so no update is made in the next stage
 					} else {
-						return this.bot.getStarboardManager().sendStarboard(new WebhookChannel(channel), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
+						return this.bot.getStarboardManager().sendStarboard(new WebhookChannel(channel), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage, data.getBoolean("premium"));
 					}
 				}).whenComplete((createdMessage, exception) -> {
 					if (exception instanceof CompletionException) {
@@ -233,7 +228,7 @@ public class StarboardHandler implements EventListener {
 					}
 
 					if (createdMessage != null) {
-						Route.CompiledRoute route = Route.Messages.ADD_REACTION.compile(Long.toString(createdMessage.getChannelId()), Long.toString(createdMessage.getId()), EncodingUtil.encodeReaction(emoji.getAsReactionCode()), "@me");
+						Route.CompiledRoute route = Route.Messages.ADD_REACTION.compile(createdMessage.getChannelId(), createdMessage.getId(), EncodingUtil.encodeReaction(emoji.getAsReactionCode()), "@me");
 						new RestActionImpl<>(event.getJDA(), route).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_EMOJI, ErrorResponse.MISSING_PERMISSIONS, ErrorResponse.MISSING_ACCESS));
 
 						this.bot.getMongo().updateStarboard(Filters.eq("originalMessageId", messageId), Updates.set("messageId", createdMessage.getId())).whenComplete(MongoDatabase.exceptionally());
@@ -282,7 +277,7 @@ public class StarboardHandler implements EventListener {
 
 			long channelId = starboard.get("channelId", 0L);
 
-			GuildMessageChannel channel = channelId == 0L ? null : event.getGuild().getChannelById(GuildMessageChannel.class, channelId);
+			GuildMessageChannelUnion channel = channelId == 0L ? null : event.getGuild().getChannelById(GuildMessageChannelUnion.class, channelId);
 			if (channel == null) {
 				return;
 			}
@@ -324,11 +319,11 @@ public class StarboardHandler implements EventListener {
 					return;
 				}
 
-				WebhookMessage webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emoji, data.getBoolean("premium"));
+				MessageCreateData webhookMessage = this.getStarboardMessage(starboard, updatedData, event.getGuild(), event.getMember(), emoji);
 				if (webhookMessage == null) {
-					this.bot.getStarboardManager().deleteStarboard(data.getLong("messageId"), channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT));
+					this.bot.getStarboardManager().deleteStarboard(data.getLong("messageId"), new WebhookChannel(channel), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT));
 				} else {
-					this.bot.getStarboardManager().editStarboard(data.getLong("messageId"), channel.getIdLong(), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
+					this.bot.getStarboardManager().editStarboard(data.getLong("messageId"), new WebhookChannel(channel), starboard.get("webhook", MongoDatabase.EMPTY_DOCUMENT), webhookMessage);
 				}
 			});
 		});

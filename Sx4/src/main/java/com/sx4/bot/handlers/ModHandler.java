@@ -1,6 +1,5 @@
 package com.sx4.bot.handlers;
 
-import club.minnced.discord.webhook.send.WebhookEmbed;
 import com.mongodb.client.ChangeStreamIterable;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
@@ -23,7 +22,9 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.GuildBanEvent;
@@ -77,7 +78,12 @@ public class ModHandler implements ModActionListener, EventListener {
 
 		ModLog modLog = ModLog.fromData(data);
 
-		this.bot.getModLogManager().editModLog(modLog.getMessageId(), modLog.getChannelId(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), modLog.getWebhookEmbed(this.bot.getShardManager()))
+		GuildMessageChannelUnion channel = modLog.getChannel(this.bot.getShardManager());
+		if (channel == null) {
+			return;
+		}
+
+		this.bot.getModLogManager().editModLog(modLog.getMessageId(), new WebhookChannel(channel), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), modLog.getWebhookEmbed(this.bot.getShardManager()))
 			.whenComplete(MongoDatabase.exceptionally());
 	}
 
@@ -120,10 +126,10 @@ public class ModHandler implements ModActionListener, EventListener {
 			action
 		);
 
-		WebhookEmbed embed = modLog.getWebhookEmbed(moderator, target);
+		MessageEmbed embed = modLog.getWebhookEmbed(moderator, target);
 
 		this.bot.getModLogManager().sendModLog(new WebhookChannel(channel), modLogData.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed, premium).whenComplete((webhookMessage, exception) -> {
-			modLog.setMessageId(webhookMessage.getId())
+			modLog.setMessageId(webhookMessage.getIdLong())
 				.setWebhookId(webhookMessage.getWebhookId())
 				.setWebhookToken(webhookMessage.getWebhookToken());
 

@@ -1,7 +1,5 @@
 package com.sx4.bot.handlers;
 
-import club.minnced.discord.webhook.send.WebhookMessage;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
@@ -13,6 +11,7 @@ import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberRemoveEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 import org.jetbrains.annotations.NotNull;
 
@@ -43,7 +42,7 @@ public class LeaverHandler implements EventListener {
 			return;
 		}
 
-		WebhookMessageBuilder builder;
+		MessageCreateBuilder builder;
 		try {
 			builder = LeaverUtility.getLeaverMessage(leaver.get("message", LeaverManager.DEFAULT_MESSAGE), event.getMember());
 		} catch (IllegalArgumentException e) {
@@ -55,12 +54,7 @@ public class LeaverHandler implements EventListener {
 
 		Document webhookData = leaver.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 
-		WebhookMessage message = builder
-			.setUsername(premium ? webhookData.get("name", "Sx4 - Leaver") : "Sx4 - Leaver")
-			.setAvatarUrl(premium ? webhookData.get("avatar", event.getJDA().getSelfUser().getEffectiveAvatarUrl()) : event.getJDA().getSelfUser().getEffectiveAvatarUrl())
-			.build();
-
-		this.bot.getLeaverManager().sendLeaver(new WebhookChannel(channel), webhookData, message);
+		this.bot.getLeaverManager().sendLeaver(new WebhookChannel(channel), webhookData, builder.build(), premium);
 	}
 
 	@Override

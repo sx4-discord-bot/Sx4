@@ -385,7 +385,7 @@ public class FreeGamesCommand extends Sx4Command {
 				.addVariable("game", freeGames.get(0));
 
 			try {
-				event.reply(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(formatter.parse(), true).build())).queue();
+				event.reply(MessageUtility.fromCreateJson(formatter.parse(), true).build()).queue();
 			} catch (IllegalArgumentException e) {
 				event.replyFailure(e.getMessage()).queue();
 			}

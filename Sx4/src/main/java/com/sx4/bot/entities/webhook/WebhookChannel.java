@@ -3,6 +3,7 @@ package com.sx4.bot.entities.webhook;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.attribute.IPermissionContainer;
 import net.dv8tion.jda.api.entities.channel.attribute.IThreadContainer;
@@ -11,14 +12,13 @@ import net.dv8tion.jda.api.entities.channel.concrete.*;
 import net.dv8tion.jda.api.entities.channel.middleman.*;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.managers.channel.ChannelManager;
-import net.dv8tion.jda.api.requests.restaction.WebhookAction;
+import net.dv8tion.jda.api.requests.restaction.*;
 import net.dv8tion.jda.internal.entities.channel.mixin.attribute.IWebhookContainerMixin;
 import net.dv8tion.jda.internal.requests.restaction.WebhookActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
-import okhttp3.OkHttpClient;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.CompletableFuture;
 
 public class WebhookChannel implements IWebhookContainerMixin<WebhookChannel> {
 
@@ -28,13 +28,30 @@ public class WebhookChannel implements IWebhookContainerMixin<WebhookChannel> {
 		this.channel = channel;
 	}
 
-	public WebhookClient getWebhookClient(long id, String token, ScheduledExecutorService pool, OkHttpClient client) {
-		return new WebhookClient(id, token, pool, client, this.channel instanceof ThreadChannel ? this.getIdLong() : 0L);
-	}
-
 	public IWebhookContainer getWebhookChannel() {
 		return (IWebhookContainer) (this.channel instanceof ThreadChannel ? ((ThreadChannel) this.channel).getParentChannel() : this.channel);
 	}
+
+	public CompletableFuture<Message> sendWebhookMessage(WebhookMessageCreateAction<Message> action) {
+		return this.modifyWebhookRequest(action);
+	}
+
+	public CompletableFuture<Message> editWebhookMessage(WebhookMessageEditAction<Message> action) {
+		return this.modifyWebhookRequest(action);
+	}
+
+	public CompletableFuture<Void> deleteWebhookMessage(WebhookMessageDeleteAction action) {
+		return this.modifyWebhookRequest(action);
+	}
+
+	public <T> CompletableFuture<T> modifyWebhookRequest(AbstractWebhookMessageAction<T, ?> action) {
+		if (this.channel instanceof ThreadChannel) {
+			action = action.setThreadId(this.channel.getIdLong());
+		}
+
+		return action.submit();
+	}
+
 
 	@NotNull
 	@Override
@@ -107,6 +124,12 @@ public class WebhookChannel implements IWebhookContainerMixin<WebhookChannel> {
 	@Override
 	public ForumChannel asForumChannel() {
 		return (ForumChannel) this.channel;
+	}
+
+	@NotNull
+	@Override
+	public MediaChannel asMediaChannel() {
+		return (MediaChannel) this.channel;
 	}
 
 	@NotNull

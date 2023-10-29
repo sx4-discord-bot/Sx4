@@ -1,14 +1,18 @@
 package com.sx4.bot.utility;
 
-import club.minnced.discord.webhook.send.MessageAttachment;
-import club.minnced.discord.webhook.send.WebhookEmbed;
-import club.minnced.discord.webhook.send.WebhookMessage;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
+import com.sx4.bot.entities.interaction.ButtonType;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.EmbedType;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.utils.FileUpload;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.interactions.components.ActionRow;
+import net.dv8tion.jda.api.interactions.components.Component;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
+import net.dv8tion.jda.api.utils.messages.AbstractMessageBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
-import net.dv8tion.jda.api.utils.messages.MessageCreateData;
+import net.dv8tion.jda.api.utils.messages.MessageEditBuilder;
 import org.bson.Document;
 
 import java.time.OffsetDateTime;
@@ -17,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 
 public class MessageUtility {
 
@@ -87,7 +91,7 @@ public class MessageUtility {
 		return colour;
 	}
 
-	private static WebhookEmbed.EmbedFooter footerFromJson(Document json, boolean checkUrl, String field) {
+	private static MessageEmbed.Footer footerFromJson(Document json, boolean checkUrl, String field) {
 		Object footerJson = json.get("footer");
 		if (!(footerJson instanceof Document footerData)) {
 			throw new IllegalArgumentException("`" + field + ".footer` value has to be a json object");
@@ -124,7 +128,7 @@ public class MessageUtility {
 			}
 		}
 
-		return text == null ? null : new WebhookEmbed.EmbedFooter(text, iconUrl);
+		return text == null ? null : new MessageEmbed.Footer(text, iconUrl, null);
 	}
 
 	private static OffsetDateTime timestampFromJson(Document json, boolean checkTimestamp, String field) {
@@ -173,7 +177,7 @@ public class MessageUtility {
 		return null;
 	}
 
-	private static WebhookEmbed.EmbedAuthor authorFromJson(Document json, boolean checkUrl, String field) {
+	private static MessageEmbed.AuthorInfo authorFromJson(Document json, boolean checkUrl, String field) {
 		Object authorJson = json.get("author");
 		if (!(authorJson instanceof Document authorData)) {
 			throw new IllegalArgumentException("`" + field + ".author` value has to be a json object");
@@ -227,7 +231,7 @@ public class MessageUtility {
 			}
 		}
 
-		return name == null ? null : new WebhookEmbed.EmbedAuthor(name, iconUrl, authorUrl);
+		return name == null ? null : new MessageEmbed.AuthorInfo(name, authorUrl, iconUrl, null);
 	}
 
 	private static String imageFromJson(Document json, boolean checkUrl, String field) {
@@ -256,7 +260,7 @@ public class MessageUtility {
 		return null;
 	}
 
-	private static List<WebhookEmbed.EmbedField> fieldsFromJson(Document json, String field) {
+	private static List<MessageEmbed.Field> fieldsFromJson(Document json, String field) {
 		Object fieldsJson = json.get("fields");
 		if (!(fieldsJson instanceof List<?> fieldsData)) {
 			throw new IllegalArgumentException("`" + field + ".fields` value has to be an array");
@@ -267,7 +271,7 @@ public class MessageUtility {
 			throw new IllegalArgumentException("You can only have 25 fields in `" + field + "`");
 		}
 
-		List<WebhookEmbed.EmbedField> fields = new ArrayList<>();
+		List<MessageEmbed.Field> fields = new ArrayList<>();
 		for (int i = 0; i < length; i++) {
 			Object fieldJson = fieldsData.get(i);
 			if (!(fieldJson instanceof Document fieldData)) {
@@ -312,65 +316,187 @@ public class MessageUtility {
 			}
 
 			if (name != null && value != null) {
-				fields.add(new WebhookEmbed.EmbedField(inline, name, value));
+				fields.add(new MessageEmbed.Field(name, value, inline));
 			}
 		}
 
 		return fields;
 	}
 
-	public static WebhookEmbed embedFromJson(Document json, boolean checkValidity, String field) {
+	private static MessageEmbed embedFromJson(Document json, boolean checkValidity, String field) {
 		boolean titleExists = json.containsKey("title");
 
 		String title = titleExists ? MessageUtility.titleFromJson(json, field) : null;
 		String url = titleExists ? MessageUtility.urlFromJson(json, checkValidity, field) : null;
 		String description = json.containsKey("description") ? MessageUtility.descriptionFromJson(json, field) : null;
-		Integer colour = json.containsKey("color") ? MessageUtility.colourFromJson(json, field) : null;
+		int colour = json.containsKey("color") ? MessageUtility.colourFromJson(json, field) : Role.DEFAULT_COLOR_RAW;
 		OffsetDateTime timestamp = json.containsKey("timestamp") ? MessageUtility.timestampFromJson(json, checkValidity, field) : null;
-		WebhookEmbed.EmbedFooter footer = json.containsKey("footer") ? MessageUtility.footerFromJson(json, checkValidity, field) : null;
+		MessageEmbed.Footer footer = json.containsKey("footer") ? MessageUtility.footerFromJson(json, checkValidity, field) : null;
 		String thumbnail = json.containsKey("thumbnail") ? MessageUtility.thumbnailFromJson(json, checkValidity, field) : null;
 		String image = json.containsKey("image") ? MessageUtility.imageFromJson(json, checkValidity, field) : null;
-		WebhookEmbed.EmbedAuthor author = json.containsKey("author") ? MessageUtility.authorFromJson(json, checkValidity, field) : null;
-		List<WebhookEmbed.EmbedField> fields = json.containsKey("fields") ? MessageUtility.fieldsFromJson(json, field) : Collections.emptyList();
+		MessageEmbed.AuthorInfo author = json.containsKey("author") ? MessageUtility.authorFromJson(json, checkValidity, field) : null;
+		List<MessageEmbed.Field> fields = json.containsKey("fields") ? MessageUtility.fieldsFromJson(json, field) : Collections.emptyList();
 
-		WebhookEmbed embed = new WebhookEmbed(timestamp, colour, description, thumbnail, image, footer, title == null ? null : new WebhookEmbed.EmbedTitle(title, url), author, fields);
-		if (MessageUtility.isWebhookEmbedEmpty(embed)) {
+		MessageEmbed embed = new MessageEmbed(url, title, description, EmbedType.RICH, timestamp, colour, thumbnail == null ? null : new MessageEmbed.Thumbnail(thumbnail, null, 0, 0), null, author, null, footer, image == null ? null : new MessageEmbed.ImageInfo(image, null, 0, 0), fields);
+		if (embed.isEmpty()) {
 			throw new IllegalArgumentException("`" + field + "` cannot be empty");
 		}
 
-		if (MessageUtility.getWebhookEmbedLength(embed) > 6000) {
+		if (!embed.isSendable()) {
 			throw new IllegalArgumentException("`" + field + "` total length cannot be more than 6000 characters");
 		}
 
 		return embed;
 	}
 
-	public static WebhookMessageBuilder fromJson(Document json, boolean checkValidity) {
-		WebhookMessageBuilder builder = new WebhookMessageBuilder();
+	private static List<Button> buttonsFromJson(List<?> components, String field, boolean checkUrl) {
+		if (components.size() > Component.Type.BUTTON.getMaxPerRow()) {
+			throw new IllegalArgumentException("`" + field + "` can only contain 5 buttons");
+		}
+
+		List<Button> componentList = new ArrayList<>();
+		for (int i = 0; i < components.size(); i++) {
+			Object componentJson = components.get(i);
+			if (!(componentJson instanceof Document component)) {
+				throw new IllegalArgumentException("`" + field + "." + i + "` value has to be a json object");
+			}
+
+			Object typeJson = component.get("type");
+			if (!(typeJson instanceof Integer type)) {
+				throw new IllegalArgumentException("`" + field + "." + i + ".type` value has to be an integer");
+			}
+
+			if (type != 2) {
+				throw new IllegalArgumentException("`" + field + "." + i + ".type` value can only be 2 (BUTTON)");
+			}
+
+			Object styleJson = component.get("style");
+			if (!(styleJson instanceof Integer style)) {
+				throw new IllegalArgumentException("`" + field + "." + i + ".style` value has to be an integer");
+			}
+
+			ButtonStyle buttonStyle = ButtonStyle.fromKey(style);
+			if (buttonStyle == ButtonStyle.UNKNOWN) {
+				throw new IllegalArgumentException("`" + field + "." + i + ".style` value is not a valid button style");
+			}
+
+			Object labelJson = component.get("label");
+			if (!(labelJson instanceof String label)) {
+				throw new IllegalArgumentException("`" + field + "." + i + ".label` value has to be a string");
+			}
+
+			if (label.length() > Button.LABEL_MAX_LENGTH) {
+				throw new IllegalArgumentException("`" + field + "." + i + ".label` can only be " + Button.LABEL_MAX_LENGTH + " characters long");
+			}
+
+			String idOrUrl;
+			if (buttonStyle == ButtonStyle.LINK) {
+				Object urlJson = component.get("url");
+				if (!(urlJson instanceof String url)) {
+					throw new IllegalArgumentException("`" + field + "." + i + ".url` value has to be a string");
+				}
+
+				if (checkUrl && !EmbedBuilder.URL_PATTERN.matcher(url).matches()) {
+					throw new IllegalArgumentException("`" + field + "." + i + ".url` is not a valid url");
+				}
+
+				idOrUrl = url;
+			} else {
+				Object idJson = component.get("custom_id");
+				if (!(idJson instanceof String id)) {
+					throw new IllegalArgumentException("`" + field + "." + i + ".custom_id` value has to be a string");
+				}
+
+				if (id.length() > Button.ID_MAX_LENGTH - 3) {
+					throw new IllegalArgumentException("`" + field + "." + i + ".custom_id` can only be " + (Button.ID_MAX_LENGTH - 3) + " characters long");
+				}
+
+				idOrUrl = ButtonType.TRIGGER_BUTTON_CLICKED.getId() + ":" + id;
+			}
+
+			Button button = Button.of(buttonStyle, idOrUrl, label);
+			componentList.add(button);
+		}
+
+		return componentList;
+	}
+
+	private static List<ActionRow> actionRowsFromJson(List<?> actionRows, boolean checkUrl) {
+		if (actionRows.size() > 5) {
+			throw new IllegalArgumentException("`components` can only contain 5 action rows");
+		}
+
+		List<ActionRow> actionRowList = new ArrayList<>();
+		for (int i = 0; i < actionRows.size(); i++) {
+			Object actionRowJson = actionRows.get(i);
+			if (!(actionRowJson instanceof Document actionRow)) {
+				throw new IllegalArgumentException("`components." + i + "` value has to be a json object");
+			}
+
+			Object typeJson = actionRow.get("type");
+			if (!(typeJson instanceof Integer type)) {
+				throw new IllegalArgumentException("`components." + i + ".type` value has to be an integer");
+			}
+
+			if (type != 1) {
+				throw new IllegalArgumentException("`components." + i + ".type` value can only be 1 (ACTION_ROW)");
+			}
+
+			Object componentsJson = actionRow.get("components");
+			if (!(componentsJson instanceof List components)) {
+				throw new IllegalArgumentException("`components.`" + i + ".components value has to be a list");
+			}
+
+			List<Button> buttons = MessageUtility.buttonsFromJson(components, "components." + i + ".components", checkUrl);
+			actionRowList.add(ActionRow.of(buttons));
+		}
+
+		return actionRowList;
+	}
+
+	public static MessageEditBuilder fromEditJson(Document json, boolean checkValidity) {
+		return MessageUtility.fromJson(json, checkValidity, MessageEditBuilder::new);
+	}
+
+	public static MessageCreateBuilder fromCreateJson(Document json, boolean checkValidity) {
+		return MessageUtility.fromJson(json, checkValidity, MessageCreateBuilder::new);
+	}
+
+	public static <Builder extends AbstractMessageBuilder<?, Builder>> Builder fromJson(Document json, boolean checkValidity, Supplier<Builder> supplier) {
+		Builder builder = supplier.get();
 		if (json.containsKey("embed")) {
 			Object embedJson = json.get("embed");
 			if (!(embedJson instanceof Document embedData)) {
 				throw new IllegalArgumentException("`embed` value has to be a json object");
 			}
 
-			WebhookEmbed embed = MessageUtility.embedFromJson(embedData, checkValidity, "embed");
+			MessageEmbed embed = MessageUtility.embedFromJson(embedData, checkValidity, "embed");
 
-			builder.addEmbeds(embed);
+			builder.setEmbeds(embed);
 		} else if (json.containsKey("embeds")) {
 			Object embedsField = json.get("embed");
 			if (!(embedsField instanceof List embedsData)) {
-				throw new IllegalArgumentException("`embeds` value has to be a list object");
+				throw new IllegalArgumentException("`embeds` value has to be a list");
 			}
 
+			if (embedsData.size() > 10) {
+				throw new IllegalArgumentException("`embeds` cannot have more than 10 embeds");
+			}
+
+			List<MessageEmbed> embeds = new ArrayList<>();
 			for (int i = 0; i < embedsData.size(); i++) {
 				Object embedJson = embedsData.get(i);
 				if (!(embedJson instanceof Document embedData)) {
 					throw new IllegalArgumentException("`embeds." + i + "` value has to be a json object");
 				}
 
-				WebhookEmbed embed = MessageUtility.embedFromJson(embedData, checkValidity, "embeds." + i);
+				MessageEmbed embed = MessageUtility.embedFromJson(embedData, checkValidity, "embeds." + i);
 
-				builder.addEmbeds(embed);
+				embeds.add(embed);
+			}
+
+			if (!embeds.isEmpty()) {
+				builder.setEmbeds(embeds);
 			}
 		}
 
@@ -380,11 +506,23 @@ public class MessageUtility {
 				throw new IllegalArgumentException("`content` value has to be a string");
 			}
 
-			if (content.length() > 2000) {
-				throw new IllegalArgumentException("`content` value cannot be more than 2000 characters");
+			if (content.length() > Message.MAX_CONTENT_LENGTH) {
+				throw new IllegalArgumentException("`content` value cannot be more than " + Message.MAX_CONTENT_LENGTH + " characters");
 			}
 
 			builder.setContent(content);
+		}
+
+		if (json.containsKey("components")) {
+			Object actionRowsJson = json.get("components");
+			if (!(actionRowsJson instanceof List actionRows)) {
+				throw new IllegalArgumentException("`components` value has to be a list");
+			}
+
+			List<ActionRow> actionRowList = MessageUtility.actionRowsFromJson(actionRows, checkValidity);
+			if (!actionRowList.isEmpty()) {
+				builder.setComponents(actionRowList);
+			}
 		}
 
 		if (builder.isEmpty()) {
@@ -394,54 +532,75 @@ public class MessageUtility {
 		return builder;
 	}
 
-	public static boolean isValid(Document json, boolean checkUrl) {
+	public static boolean isValid(Document json, boolean checkValidity) {
 		try {
-			MessageUtility.fromJson(json, checkUrl);
+			MessageUtility.fromCreateJson(json, checkValidity);
 			return true;
 		} catch (IllegalArgumentException e) {
 			return false;
 		}
 	}
 
-	public static boolean isWebhookEmbedEmpty(WebhookEmbed embed) {
-		return MessageUtility.isEmpty(embed.getDescription())
-			&& MessageUtility.isEmpty(embed.getImageUrl())
-			&& MessageUtility.isEmpty(embed.getThumbnailUrl())
-			&& MessageUtility.isFieldsEmpty(embed.getFields())
-			&& MessageUtility.isAuthorEmpty(embed.getAuthor())
-			&& MessageUtility.isTitleEmpty(embed.getTitle())
-			&& MessageUtility.isFooterEmpty(embed.getFooter())
-			&& embed.getTimestamp() == null;
-	}
+	public static MessageEmbed combineEmbeds(MessageEmbed firstEmbed, MessageEmbed secondEmbed) {
+		EmbedBuilder builder = new EmbedBuilder(firstEmbed);
 
-	private static boolean isEmpty(String s) {
-		return s == null || s.trim().isEmpty();
-	}
-
-	private static boolean isTitleEmpty(WebhookEmbed.EmbedTitle title) {
-		return title == null || MessageUtility.isEmpty(title.getText());
-	}
-
-	private static boolean isFooterEmpty(WebhookEmbed.EmbedFooter footer) {
-		return footer == null || MessageUtility.isEmpty(footer.getText());
-	}
-
-	private static boolean isAuthorEmpty(WebhookEmbed.EmbedAuthor author) {
-		return author == null || MessageUtility.isEmpty(author.getName());
-	}
-
-	private static boolean isFieldsEmpty(List<WebhookEmbed.EmbedField> fields) {
-		if (fields.isEmpty()) {
-			return true;
+		String title = secondEmbed.getTitle();
+		if (title != null) {
+			builder.setTitle(title);
 		}
 
-		return fields.stream().allMatch(f -> MessageUtility.isEmpty(f.getName()) && MessageUtility.isEmpty(f.getValue()));
+		String url = secondEmbed.getUrl();
+		if (url != null) {
+			builder.setUrl(url);
+		}
+
+		MessageEmbed.AuthorInfo author = secondEmbed.getAuthor();
+		if (author != null) {
+			builder.setAuthor(author.getName(), author.getUrl(), author.getIconUrl());
+		}
+
+		MessageEmbed.ImageInfo image = secondEmbed.getImage();
+		if (image != null) {
+			builder.setImage(image.getUrl());
+		}
+
+		MessageEmbed.Thumbnail thumbnail = secondEmbed.getThumbnail();
+		if (thumbnail != null) {
+			builder.setThumbnail(thumbnail.getUrl());
+		}
+
+		List<MessageEmbed.Field> fields = secondEmbed.getFields();
+		if (!fields.isEmpty()) {
+			fields.forEach(builder::addField);
+		}
+
+		String description = secondEmbed.getDescription();
+		if (description != null) {
+			builder.setDescription(description);
+		}
+
+		MessageEmbed.Footer footer = secondEmbed.getFooter();
+		if (footer != null) {
+			builder.setFooter(footer.getText(), footer.getIconUrl());
+		}
+
+		OffsetDateTime timestamp = secondEmbed.getTimestamp();
+		if (timestamp != null) {
+			builder.setTimestamp(timestamp);
+		}
+
+		int colour = secondEmbed.getColorRaw();
+		if (colour != Role.DEFAULT_COLOR_RAW) {
+			builder.setColor(colour);
+		}
+
+		return builder.build();
 	}
 
-	public static int getWebhookEmbedLength(WebhookEmbed embed) {
+	public static int getEmbedLength(MessageEmbed embed) {
 		int length = 0;
 
-		String title = embed.getTitle() != null ? embed.getTitle().getText() : null;
+		String title = embed.getTitle() != null ? embed.getTitle() : null;
 		if (title != null) {
 			length += title.length();
 		}
@@ -461,133 +620,92 @@ public class MessageUtility {
 			length += footer.length();
 		}
 
-		for (WebhookEmbed.EmbedField field : embed.getFields()) {
+		for (MessageEmbed.Field field : embed.getFields()) {
 			length += field.getName().length() + field.getValue().length();
 		}
 
 		return length;
 	}
 
-	public static int getWebhookEmbedLength(List<WebhookEmbed> embeds) {
-		return embeds.stream().mapToInt(MessageUtility::getWebhookEmbedLength).sum();
+	public static int getEmbedLength(List<MessageEmbed> embeds) {
+		return embeds.stream().mapToInt(MessageUtility::getEmbedLength).sum();
 	}
-
-	public static EmbedBuilder fromWebhookEmbed(WebhookEmbed embed) {
-		EmbedBuilder builder = new EmbedBuilder();
-		WebhookEmbed.EmbedTitle title = embed.getTitle();
-		String description = embed.getDescription();
-		String thumbnail = embed.getThumbnailUrl();
-		WebhookEmbed.EmbedAuthor author = embed.getAuthor();
-		WebhookEmbed.EmbedFooter footer = embed.getFooter();
-		String image = embed.getImageUrl();
-		List<WebhookEmbed.EmbedField> fields = embed.getFields();
-		Integer color = embed.getColor();
-		OffsetDateTime timestamp = embed.getTimestamp();
-
-		if (title != null) {
-			builder.setTitle(title.getText(), title.getUrl());
-		}
-
-		if (description != null) {
-			builder.setDescription(description);
-		}
-
-		if (thumbnail != null) {
-			builder.setThumbnail(thumbnail);
-		}
-
-		if (author != null) {
-			builder.setAuthor(author.getName(), author.getUrl(), author.getIconUrl());
-		}
-
-		if (footer != null) {
-			builder.setFooter(footer.getText(), footer.getIconUrl());
-		}
-
-		if (image != null) {
-			builder.setImage(image);
-		}
-
-		if (!fields.isEmpty()) {
-			fields.forEach(field -> builder.addField(field.getName(), field.getValue(), field.isInline()));
-		}
-
-		if (color != null) {
-			builder.setColor(color);
-		}
-
-		if (timestamp != null) {
-			builder.setTimestamp(timestamp);
-		}
-
-		return builder;
-	}
-
-	public static MessageCreateBuilder fromWebhookMessageAsBuilder(WebhookMessage message) {
-		MessageCreateBuilder builder = new MessageCreateBuilder();
-
-		List<WebhookEmbed> embeds = message.getEmbeds();
-		if (!embeds.isEmpty()) {
-			builder.setEmbeds(embeds.stream().map(MessageUtility::fromWebhookEmbed).map(EmbedBuilder::build).collect(Collectors.toList()));
-		}
-
-		builder.setContent(message.getContent());
-
-		MessageAttachment[] attachments = message.getAttachments();
-		if (attachments != null && attachments.length != 0) {
-			for (MessageAttachment attachment : attachments) {
-				builder.addFiles(FileUpload.fromData(attachment.getData(), attachment.getName()));
-			}
-		}
-
-		return builder;
-	}
-
-	public static MessageCreateData fromWebhookMessage(WebhookMessage message) {
-		return MessageUtility.fromWebhookMessageAsBuilder(message).build();
-	}
-
 
 	private static void keepFields(Document json, Set<String> whitelisted) {
 		json.keySet().removeIf(key -> !whitelisted.contains(key));
 	}
 
-	public static void removeFields(Document json) {
-		MessageUtility.keepFields(json, Set.of("embed", "content"));
-
-		Object embedJson = json.get("embed");
-		if (embedJson instanceof Document embed) {
-
-			MessageUtility.keepFields(embed, Set.of("author", "title", "color", "fields", "description", "image", "thumbnail", "footer", "timestamp", "url"));
-
-			Object author = embed.get("author");
-			if (author instanceof Document) {
-				MessageUtility.keepFields((Document) author, Set.of("name", "icon_url", "url"));
-			}
-
-			Object footer = embed.get("footer");
-			if (footer instanceof Document) {
-				MessageUtility.keepFields((Document) footer, Set.of("text", "icon_url"));
-			}
-
-			Object thumbnail = embed.get("thumbnail");
-			if (thumbnail instanceof Document) {
-				MessageUtility.keepFields((Document) thumbnail, Set.of("url"));
-			}
-
-			Object image = embed.get("image");
-			if (image instanceof Document) {
-				MessageUtility.keepFields((Document) image, Set.of("url"));
-			}
-
-			Object fields = embed.get("fields");
-			if (fields instanceof List) {
-				for (Object field : (List<?>) fields) {
-					if (field instanceof Document) {
-						MessageUtility.keepFields((Document) field, Set.of("name", "value", "inline"));
+	private static void removeComponentFields(List<?> components) {
+		for (Object componentJson : components) {
+			if (componentJson instanceof Document component) {
+				Object typeJson = component.get("type");
+				if (typeJson instanceof Integer type) {
+					if (type == 1) {
+						MessageUtility.keepFields(component, Set.of("type", "components"));
+						Object actionRowComponentsJson = component.get("components");
+						if (actionRowComponentsJson instanceof List actionRowComponents) {
+							MessageUtility.removeComponentFields(actionRowComponents);
+						}
+					} else if (type == 2) {
+						MessageUtility.keepFields(component, Set.of("type", "label", "url", "custom_id", "style"));
 					}
 				}
 			}
+		}
+	}
+
+	private static void removeEmbedFields(Document embed) {
+		MessageUtility.keepFields(embed, Set.of("author", "title", "color", "fields", "description", "image", "thumbnail", "footer", "timestamp", "url"));
+
+		Object author = embed.get("author");
+		if (author instanceof Document) {
+			MessageUtility.keepFields((Document) author, Set.of("name", "icon_url", "url"));
+		}
+
+		Object footer = embed.get("footer");
+		if (footer instanceof Document) {
+			MessageUtility.keepFields((Document) footer, Set.of("text", "icon_url"));
+		}
+
+		Object thumbnail = embed.get("thumbnail");
+		if (thumbnail instanceof Document) {
+			MessageUtility.keepFields((Document) thumbnail, Set.of("url"));
+		}
+
+		Object image = embed.get("image");
+		if (image instanceof Document) {
+			MessageUtility.keepFields((Document) image, Set.of("url"));
+		}
+
+		Object fields = embed.get("fields");
+		if (fields instanceof List) {
+			for (Object field : (List<?>) fields) {
+				if (field instanceof Document) {
+					MessageUtility.keepFields((Document) field, Set.of("name", "value", "inline"));
+				}
+			}
+		}
+	}
+
+	public static void removeFields(Document json) {
+		MessageUtility.keepFields(json, Set.of("embed", "embeds", "content", "components"));
+
+		Object embedJson = json.get("embed");
+		Object embedsData = json.get("embeds");
+		if (embedJson instanceof Document embed) {
+			MessageUtility.removeEmbedFields(embed);
+			json.remove("embeds");
+		} else if (embedsData instanceof List embeds) {
+			for (Object embedData : embeds) {
+				if (embedData instanceof Document embed) {
+					MessageUtility.removeEmbedFields(embed);
+				}
+			}
+		}
+
+		Object componentsJson = json.get("components");
+		if (componentsJson instanceof List components) {
+			MessageUtility.removeComponentFields(components);
 		}
 	}
 

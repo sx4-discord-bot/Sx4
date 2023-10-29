@@ -1,7 +1,5 @@
 package com.sx4.bot.handlers;
 
-import club.minnced.discord.webhook.send.WebhookMessage;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
@@ -21,6 +19,8 @@ import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.sharding.ShardManager;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.jetbrains.annotations.NotNull;
@@ -40,13 +40,13 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 		this.bot = bot;
 	}
 	
-	private WebhookMessageBuilder format(YouTubeUploadEvent event, Document document) {
+	private MessageCreateBuilder format(YouTubeUploadEvent event, Document document) {
 		Document formattedDocument = new JsonFormatter(document)
 			.addVariable("channel", event.getChannel())
 			.addVariable("video", event.getVideo())
 			.parse();
 
-		return MessageUtility.fromJson(formattedDocument, true);
+		return MessageUtility.fromCreateJson(formattedDocument, true);
 	}
 
 	public void onYouTubeUpload(YouTubeUploadEvent event) {
@@ -87,11 +87,9 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 					Document webhookData = notification.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 					boolean premium = notification.getBoolean("premium");
 
-					WebhookMessage message;
+					MessageCreateData message;
 					try {
 						message = this.format(event, notification.get("message", YouTubeManager.DEFAULT_MESSAGE))
-							.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getConfig().getYouTubeAvatar()) : this.bot.getConfig().getYouTubeAvatar())
-							.setUsername(premium ? webhookData.get("name", "Sx4 - YouTube") : "Sx4 - YouTube")
 							.build();
 					} catch (IllegalArgumentException e) {
 						// possibly create an error field when this happens so the user can debug what went wrong
@@ -99,7 +97,7 @@ public class YouTubeHandler implements YouTubeListener, EventListener {
 						return;
 					}
 
-					this.bot.getYouTubeManager().sendYouTubeNotification(new WebhookChannel(channel), webhookData, message).whenComplete(MongoDatabase.exceptionally());
+					this.bot.getYouTubeManager().sendYouTubeNotification(new WebhookChannel(channel), webhookData, message, premium).whenComplete(MongoDatabase.exceptionally());
 				});
 
 				if (!bulkUpdate.isEmpty()) {

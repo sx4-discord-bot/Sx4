@@ -1,7 +1,5 @@
 package com.sx4.bot.handlers;
 
-import club.minnced.discord.webhook.send.WebhookMessage;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
@@ -16,6 +14,8 @@ import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.sharding.ShardManager;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -34,13 +34,13 @@ public class TwitchHandler implements TwitchListener {
 		this.bot = bot;
 	}
 
-	private WebhookMessageBuilder format(TwitchStreamStartEvent event, Document document) {
+	private MessageCreateBuilder format(TwitchStreamStartEvent event, Document document) {
 		Document formattedDocument = new JsonFormatter(document)
 			.addVariable("streamer", event.getStreamer())
 			.addVariable("stream", event.getStream())
 			.parse();
 
-		return MessageUtility.fromJson(formattedDocument, true);
+		return MessageUtility.fromCreateJson(formattedDocument, true);
 	}
 
 	@Override
@@ -89,18 +89,16 @@ public class TwitchHandler implements TwitchListener {
 					Document webhookData = notification.get("webhook", MongoDatabase.EMPTY_DOCUMENT);
 					boolean premium = notification.getBoolean("premium");
 
-					WebhookMessage message;
+					MessageCreateData message;
 					try {
 						message = this.format(event, notification.get("message", TwitchManager.DEFAULT_MESSAGE))
-							.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getConfig().getTwitchAvatar()) : this.bot.getConfig().getTwitchAvatar())
-							.setUsername(premium ? webhookData.get("name", "Sx4 - Twitch") : "Sx4 - Twitch")
 							.build();
 					} catch (IllegalArgumentException e) {
 						bulkUpdate.add(new UpdateOneModel<>(Filters.eq("_id", notification.getObjectId("_id")), Updates.unset("message"), new UpdateOptions()));
 						return;
 					}
 
-					this.bot.getTwitchManager().sendTwitchNotification(new WebhookChannel(channel), webhookData, message).whenComplete(MongoDatabase.exceptionally());
+					this.bot.getTwitchManager().sendTwitchNotification(new WebhookChannel(channel), webhookData, message, premium).whenComplete(MongoDatabase.exceptionally());
 				});
 
 				if (!bulkUpdate.isEmpty()) {

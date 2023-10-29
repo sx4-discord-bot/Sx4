@@ -1,6 +1,5 @@
 package com.sx4.bot.commands.management;
 
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
@@ -23,7 +22,6 @@ import com.sx4.bot.formatter.output.function.FormatterVariable;
 import com.sx4.bot.managers.LeaverManager;
 import com.sx4.bot.utility.ExceptionUtility;
 import com.sx4.bot.utility.LeaverUtility;
-import com.sx4.bot.utility.MessageUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -33,6 +31,7 @@ import net.dv8tion.jda.api.entities.channel.attribute.IWebhookContainer;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -248,7 +247,7 @@ public class LeaverCommand extends Sx4Command {
 			return;
 		}
 
-		WebhookMessageBuilder builder;
+		MessageCreateBuilder builder;
 		try {
 			builder = LeaverUtility.getLeaverMessage(leaver.get("message", LeaverManager.DEFAULT_MESSAGE), event.getMember());
 		} catch (IllegalArgumentException e) {
@@ -256,7 +255,7 @@ public class LeaverCommand extends Sx4Command {
 			return;
 		}
 
-		event.reply(MessageUtility.fromWebhookMessage(builder.build())).queue();
+		event.reply(builder.build()).queue();
 	}
 
 }

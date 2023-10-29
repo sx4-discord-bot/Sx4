@@ -28,7 +28,7 @@ public class AdvancedSayCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event, @Argument(value="json", endless=true) @AdvancedMessage Document json) {
 		try {
-			event.reply(MessageUtility.fromWebhookMessage(MessageUtility.fromJson(json, true).build())).queue();
+			event.reply(MessageUtility.fromCreateJson(json, true).build()).queue();
 		} catch (IllegalArgumentException e) {
 			event.replyFailure(e.getMessage()).queue();
 		}

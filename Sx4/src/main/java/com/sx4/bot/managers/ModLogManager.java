@@ -1,20 +1,22 @@
 package com.sx4.bot.managers;
 
-import club.minnced.discord.webhook.exception.HttpException;
-import club.minnced.discord.webhook.send.WebhookEmbed;
-import club.minnced.discord.webhook.send.WebhookMessage;
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.mongodb.client.model.Updates;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
-import com.sx4.bot.entities.webhook.ReadonlyMessage;
+import com.sx4.bot.entities.webhook.SentWebhookMessage;
 import com.sx4.bot.entities.webhook.WebhookChannel;
-import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.User;
-import okhttp3.OkHttpClient;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.WebhookClient;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.restaction.WebhookMessageCreateAction;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
+import net.dv8tion.jda.api.utils.messages.MessageEditBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageEditData;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -22,15 +24,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 
 public class ModLogManager implements WebhookManager {
 
-	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-	private final OkHttpClient client = new OkHttpClient();
-
-	private final Map<Long, WebhookClient> webhooks;
+	private final Map<Long, WebhookClient<Message>> webhooks;
 
 	private final Sx4 bot;
 
@@ -39,15 +36,15 @@ public class ModLogManager implements WebhookManager {
 		this.bot = bot;
 	}
 
-	public WebhookClient getWebhook(long channelId) {
+	public WebhookClient<Message> getWebhook(long channelId) {
 		return this.webhooks.get(channelId);
 	}
 
-	public WebhookClient removeWebhook(long channelId) {
+	public WebhookClient<Message> removeWebhook(long channelId) {
 		return this.webhooks.remove(channelId);
 	}
 
-	public void putWebhook(long channelId, WebhookClient webhook) {
+	public void putWebhook(long channelId, WebhookClient<Message> webhook) {
 		this.webhooks.put(channelId, webhook);
 	}
 
@@ -61,92 +58,92 @@ public class ModLogManager implements WebhookManager {
 		this.bot.getMongo().updateGuildById(guild.getIdLong(), update).whenComplete(MongoDatabase.exceptionally());
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(WebhookChannel channel, WebhookMessage message) {
+	private CompletableFuture<SentWebhookMessage> createWebhook(WebhookChannel channel, Document webhookData, MessageCreateData message, boolean premium) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			this.disableModLog(channel.getGuild());
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
 		}
 
 		return channel.createWebhook("Sx4 - Mod Logs").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = channel.getWebhookClient(webhook.getIdLong(), webhook.getToken(), this.executor, this.client);
-
-			this.webhooks.put(channel.getIdLong(), webhookClient);
+			this.webhooks.put(channel.getIdLong(), webhook);
 
 			Bson update = Updates.combine(
 				Updates.set("modLog.webhook.id", webhook.getIdLong()),
 				Updates.set("modLog.webhook.token", webhook.getToken())
 			);
 
+			WebhookMessageCreateAction<Message> action = webhook.sendMessage(message)
+				.setAvatarUrl(premium ? webhookData.get("avatar", channel.getJDA().getSelfUser().getEffectiveAvatarUrl()) : channel.getJDA().getSelfUser().getEffectiveAvatarUrl())
+				.setUsername(premium ? webhookData.get("name", "Sx4 - Mod Logs") : "Sx4 - Mod Logs");
+
 			return this.bot.getMongo().updateGuildById(channel.getGuild().getIdLong(), update)
-				.thenCompose(result -> webhookClient.send(message))
-				.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
+				.thenCompose(result -> channel.sendWebhookMessage(action))
+				.thenApply(webhookMessage -> new SentWebhookMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
 		}).exceptionallyCompose(exception -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-			if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+			if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());
 
-				return this.createWebhook(channel, message);
+				return this.createWebhook(channel, webhookData, message, premium);
 			}
 
 			return CompletableFuture.failedFuture(exception);
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendModLog(WebhookChannel channel, Document webhookData, WebhookEmbed embed, boolean premium) {
-		User selfUser = channel.getJDA().getSelfUser();
-
-		WebhookMessage message = new WebhookMessageBuilder()
-			.setAvatarUrl(premium ? webhookData.get("avatar", selfUser.getEffectiveAvatarUrl()) : selfUser.getEffectiveAvatarUrl())
-			.setUsername(premium ? webhookData.get("name", "Sx4 - Mod Logs") : "Sx4 - Mod Logs")
+	public CompletableFuture<SentWebhookMessage> sendModLog(WebhookChannel channel, Document webhookData, MessageEmbed embed, boolean premium) {
+		MessageCreateData message = new MessageCreateBuilder()
 			.addEmbeds(embed)
 			.build();
 
-		WebhookClient webhook;
+		WebhookClient<Message> webhook;
 		if (this.webhooks.containsKey(channel.getIdLong())) {
 			webhook = this.webhooks.get(channel.getIdLong());
 		} else if (!webhookData.containsKey("id")) {
-			return this.createWebhook(channel, message);
+			return this.createWebhook(channel, webhookData, message, premium);
 		} else {
-			webhook = channel.getWebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.executor, this.client);
+			webhook = WebhookClient.createClient(channel.getJDA(), Long.toString(webhookData.getLong("id")), webhookData.getString("token"));
 
 			this.webhooks.put(channel.getIdLong(), webhook);
 		}
 
-		return webhook.send(message)
-			.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getId(), webhook.getToken()))
+		WebhookMessageCreateAction<Message> action = webhook.sendMessage(message)
+			.setAvatarUrl(premium ? webhookData.get("avatar", channel.getJDA().getSelfUser().getEffectiveAvatarUrl()) : channel.getJDA().getSelfUser().getEffectiveAvatarUrl())
+			.setUsername(premium ? webhookData.get("name", "Sx4 - Mod Logs") : "Sx4 - Mod Logs");
+
+		return channel.sendWebhookMessage(action)
+			.thenApply(webhookMessage -> new SentWebhookMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()))
 			.exceptionallyCompose(exception -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+				if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 404) {
 					this.webhooks.remove(channel.getIdLong());
 
-					return this.createWebhook(channel, message);
+					return this.createWebhook(channel, webhookData, message, premium);
 				}
 
 				return CompletableFuture.failedFuture(exception);
 			});
 	}
 
-	public CompletableFuture<club.minnced.discord.webhook.receive.ReadonlyMessage> editModLog(long messageId, long channelId, Document webhookData, WebhookEmbed embed) {
-		User selfUser = this.bot.getShardManager().getShardById(0).getSelfUser();
-
-		WebhookMessage message = new WebhookMessageBuilder()
-			.setAvatarUrl(webhookData.get("url", selfUser.getEffectiveAvatarUrl()))
-			.setUsername(webhookData.get("name", selfUser.getName()))
-			.addEmbeds(embed)
+	public CompletableFuture<SentWebhookMessage> editModLog(long messageId, WebhookChannel channel, Document webhookData, MessageEmbed embed) {
+		MessageEditData message = new MessageEditBuilder()
+			.setEmbeds(embed)
 			.build();
 
-		WebhookClient webhook;
+		long channelId = channel.getIdLong();
+
+		WebhookClient<Message> webhook;
 		if (this.webhooks.containsKey(channelId)) {
 			webhook = this.webhooks.get(channelId);
 		} else if (!webhookData.containsKey("id")) {
 			return CompletableFuture.completedFuture(null);
 		} else {
-			webhook = new WebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.executor, this.client);
+			webhook = WebhookClient.createClient(channel.getJDA(), Long.toString(webhookData.getLong("id")), webhookData.getString("token"));
 
 			this.webhooks.put(channelId, webhook);
 		}
 
-		return webhook.edit(messageId, message);
+		return channel.editWebhookMessage(webhook.editMessageById(messageId, message)).thenApply(webhookMessage -> new SentWebhookMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
 	}
 
 }

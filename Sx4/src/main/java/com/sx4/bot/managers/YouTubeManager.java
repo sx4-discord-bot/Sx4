@@ -1,21 +1,22 @@
 package com.sx4.bot.managers;
 
-import club.minnced.discord.webhook.exception.HttpException;
-import club.minnced.discord.webhook.send.WebhookMessage;
 import com.mongodb.client.model.*;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
-import com.sx4.bot.entities.webhook.ReadonlyMessage;
+import com.sx4.bot.entities.webhook.SentWebhookMessage;
 import com.sx4.bot.entities.webhook.WebhookChannel;
-import com.sx4.bot.entities.webhook.WebhookClient;
 import com.sx4.bot.events.youtube.*;
 import com.sx4.bot.exceptions.mod.BotPermissionException;
 import com.sx4.bot.hooks.YouTubeListener;
 import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.WebhookClient;
 import net.dv8tion.jda.api.entities.channel.Channel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.restaction.WebhookMessageCreateAction;
+import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import okhttp3.MultipartBody;
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import org.bson.Document;
@@ -33,10 +34,7 @@ public class YouTubeManager implements WebhookManager {
 
 	private final Map<String, ScheduledFuture<?>> executors;
 
-	private final HashMap<Long, WebhookClient> webhooks;
-
-	private final OkHttpClient client = new OkHttpClient();
-	private final ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+	private final HashMap<Long, WebhookClient<Message>> webhooks;
 	
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
@@ -49,15 +47,15 @@ public class YouTubeManager implements WebhookManager {
 		this.bot = bot;
 	}
 
-	public WebhookClient getWebhook(long id) {
+	public WebhookClient<Message> getWebhook(long id) {
 		return this.webhooks.get(id);
 	}
 
-	public WebhookClient removeWebhook(long id) {
+	public WebhookClient<Message> removeWebhook(long id) {
 		return this.webhooks.remove(id);
 	}
 
-	public void putWebhook(long id, WebhookClient webhook) {
+	public void putWebhook(long id, WebhookClient<Message> webhook) {
 		this.webhooks.put(id, webhook);
 	}
 	
@@ -204,16 +202,14 @@ public class YouTubeManager implements WebhookManager {
 		this.bot.getMongo().updateManyYouTubeNotifications(Filters.eq("channelId", channel.getIdLong()), update).whenComplete(MongoDatabase.exceptionally());
 	}
 
-	private CompletableFuture<ReadonlyMessage> createWebhook(WebhookChannel channel, WebhookMessage message) {
+	private CompletableFuture<SentWebhookMessage> createWebhook(WebhookChannel channel, Document webhookData, MessageCreateData message, boolean premium) {
 		if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_WEBHOOKS)) {
 			this.disableYouTubeNotifications(channel);
 			return CompletableFuture.failedFuture(new BotPermissionException(Permission.MANAGE_WEBHOOKS));
 		}
 
 		return channel.createWebhook("Sx4 - YouTube").submit().thenCompose(webhook -> {
-			WebhookClient webhookClient = channel.getWebhookClient(webhook.getIdLong(), webhook.getToken(), this.scheduledExecutor, this.client);
-
-			this.webhooks.put(channel.getIdLong(), webhookClient);
+			this.webhooks.put(channel.getIdLong(), webhook);
 
 			Bson update = Updates.combine(
 				Updates.set("webhook.id", webhook.getIdLong()),
@@ -222,43 +218,51 @@ public class YouTubeManager implements WebhookManager {
 
 			long webhookChannelId = channel.getWebhookChannel().getIdLong();
 
+			WebhookMessageCreateAction<Message> action = webhook.sendMessage(message)
+				.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getConfig().getYouTubeAvatar()) : this.bot.getConfig().getYouTubeAvatar())
+				.setUsername(premium ? webhookData.get("name", "Sx4 - YouTube") : "Sx4 - YouTube");
+
 			return this.bot.getMongo().updateManyYouTubeNotifications(Filters.or(Filters.eq("channelId", webhookChannelId), Filters.eq("webhook.channelId", webhookChannelId)), update)
-				.thenCompose(result -> webhookClient.send(message))
-				.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
+				.thenCompose(result -> channel.sendWebhookMessage(action))
+				.thenApply(webhookMessage -> new SentWebhookMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
 		}).exceptionallyCompose(exception -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-			if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+			if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 404) {
 				this.webhooks.remove(channel.getIdLong());
 
-				return this.createWebhook(channel, message);
+				return this.createWebhook(channel, webhookData, message, premium);
 			}
 
 			return CompletableFuture.failedFuture(exception);
 		});
 	}
 
-	public CompletableFuture<ReadonlyMessage> sendYouTubeNotification(WebhookChannel channel, Document webhookData, WebhookMessage message) {
+	public CompletableFuture<SentWebhookMessage> sendYouTubeNotification(WebhookChannel channel, Document webhookData, MessageCreateData message, boolean premium) {
 		long channelId = channel.getIdLong();
 
-		WebhookClient webhook;
+		WebhookClient<Message> webhook;
 		if (this.webhooks.containsKey(channelId)) {
 			webhook = this.webhooks.get(channelId);
 		} else if (!webhookData.containsKey("id")) {
-			return this.createWebhook(channel, message);
+			return this.createWebhook(channel, webhookData, message, premium);
 		} else {
-			webhook = channel.getWebhookClient(webhookData.getLong("id"), webhookData.getString("token"), this.scheduledExecutor, this.client);
+			webhook = WebhookClient.createClient(channel.getJDA(), Long.toString(webhookData.getLong("id")), webhookData.getString("token"));
 
 			this.webhooks.put(channelId, webhook);
 		}
 
-		return webhook.send(message)
-			.thenApply(webhookMessage -> new ReadonlyMessage(webhookMessage, webhook.getId(), webhook.getToken()))
+		WebhookMessageCreateAction<Message> action = webhook.sendMessage(message)
+			.setAvatarUrl(premium ? webhookData.get("avatar", this.bot.getConfig().getYouTubeAvatar()) : this.bot.getConfig().getYouTubeAvatar())
+			.setUsername(premium ? webhookData.get("name", "Sx4 - YouTube") : "Sx4 - YouTube");
+
+		return channel.sendWebhookMessage(action)
+			.thenApply(webhookMessage -> new SentWebhookMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()))
 			.exceptionallyCompose(exception -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof HttpException && ((HttpException) cause).getCode() == 404) {
+				if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 404) {
 					this.webhooks.remove(channelId);
 
-					return this.createWebhook(channel, message);
+					return this.createWebhook(channel, webhookData, message, premium);
 				}
 
 				return CompletableFuture.failedFuture(exception);

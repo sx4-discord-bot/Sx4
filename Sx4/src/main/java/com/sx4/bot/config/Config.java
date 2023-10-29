@@ -1,10 +1,7 @@
 package com.sx4.bot.config;
 
-import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.WebhookClientBuilder;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
@@ -29,8 +26,6 @@ public class Config extends GenericConfig {
 	// Avoid iterating the json everytime they're used
 	private String emoteSuccess;
 	private String emoteFailure;
-
-	private WebhookClient errorsWebhook;
 	
 	private Config() {
 		super("config.json");
@@ -196,14 +191,6 @@ public class Config extends GenericConfig {
 
 	public String getErrorsWebhookToken() {
 		return this.get(this.getState() + ".supportGuild.webhook.errors.token");
-	}
-
-	public WebhookClient getErrorsWebhook() {
-		if (this.errorsWebhook == null) {
-			this.errorsWebhook = new WebhookClientBuilder(this.getErrorsWebhookId(), this.getErrorsWebhookToken()).build();
-		}
-
-		return this.errorsWebhook;
 	}
 	
 	public long getEventsWebhookId() {

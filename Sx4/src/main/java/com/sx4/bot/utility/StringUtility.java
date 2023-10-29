@@ -126,7 +126,7 @@ public class StringUtility {
 			beginIndex += length;
 		}
 		
-		return string.substring(Math.max(0, beginIndex), Math.min(length, endIndex));
+		return string.substring(Math.min(length, Math.max(0, beginIndex)), Math.min(length, endIndex));
 	}
 	
 	public static String substring(String string, int beginIndex) {

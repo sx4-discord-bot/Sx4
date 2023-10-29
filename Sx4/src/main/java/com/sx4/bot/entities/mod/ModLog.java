@@ -1,14 +1,11 @@
 package com.sx4.bot.entities.mod;
 
-import club.minnced.discord.webhook.send.WebhookEmbed;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedTitle;
-import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.sx4.bot.entities.mod.action.Action;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.entities.*;
-import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -125,14 +122,14 @@ public class ModLog {
 		return this.channelId;
 	}
 	
-	public GuildMessageChannel getChannel(ShardManager manager) {
+	public GuildMessageChannelUnion getChannel(ShardManager manager) {
 		if (this.channelId == 0L) {
 			return null;
 		}
 
 		Guild guild = this.getGuild(manager);
 		
-		return guild == null ? null : guild.getChannelById(GuildMessageChannel.class, this.channelId);
+		return guild == null ? null : guild.getChannelById(GuildMessageChannelUnion.class, this.channelId);
 	}
 	
 	public long getTargetId() {
@@ -175,19 +172,19 @@ public class ModLog {
 		return this.getEmbed(this.getModerator(manager), this.getTarget(manager));
 	}
 
-	public WebhookEmbed getWebhookEmbed(User moderator, User target) {
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
-		embed.setTitle(new EmbedTitle(this.action.toString(), null));
-		embed.addField(new EmbedField(false, "Target", (target == null || target.getClass() == UserReference.class ? "Anonymous#0000" : target.getAsTag()) + " (" + this.getTargetId() + ")"));
-		embed.addField(new EmbedField(false, "Moderator", (moderator == null || moderator.getClass() == UserReference.class ? "Anonymous#0000" : moderator.getAsTag()) + " (" + this.getModeratorId() + ")"));
-		embed.addField(new EmbedField(false, "Reason", this.reason == null ? "None Given" : this.reason.getParsed()));
+	public MessageEmbed getWebhookEmbed(User moderator, User target) {
+		EmbedBuilder embed = new EmbedBuilder();
+		embed.setTitle(this.action.toString(), null);
+		embed.addField("Target", (target == null || target.getClass() == UserReference.class ? "Anonymous#0000" : target.getAsTag()) + " (" + this.getTargetId() + ")", false);
+		embed.addField("Moderator", (moderator == null || moderator.getClass() == UserReference.class ? "Anonymous#0000" : moderator.getAsTag()) + " (" + this.getModeratorId() + ")", false);
+		embed.addField("Reason", this.reason == null ? "None Given" : this.reason.getParsed(), false);
 		embed.setTimestamp(Instant.ofEpochSecond(this.getTimestamp()));
-		embed.setFooter(new EmbedFooter("ID: " + this.getHex(), null));
+		embed.setFooter("ID: " + this.getHex(), null);
 
 		return embed.build();
 	}
 
-	public WebhookEmbed getWebhookEmbed(ShardManager manager) {
+	public MessageEmbed getWebhookEmbed(ShardManager manager) {
 		return this.getWebhookEmbed(this.getModerator(manager), this.getTarget(manager));
 	}
 

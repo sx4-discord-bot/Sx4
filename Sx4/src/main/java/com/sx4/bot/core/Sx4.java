@@ -145,6 +145,7 @@ public class Sx4 {
 	private final LoggerHandler loggerHandler;
 	private final ConnectionHandler connectionHandler;
 	private final EntitlementsHandler entitlementsHandler;
+	private final TriggerHandler triggerHandler;
 
 	/* Managers */
 	private final YouTubeManager youTubeManager;
@@ -205,6 +206,7 @@ public class Sx4 {
 		this.loggerHandler = new LoggerHandler(this);
 		this.connectionHandler = new ConnectionHandler(this);
 		this.entitlementsHandler = new EntitlementsHandler(this);
+		this.triggerHandler = new TriggerHandler(this);
 
 		this.economyManager = new EconomyManager();
 		this.giveawayManager = new GiveawayManager(this);
@@ -251,7 +253,7 @@ public class Sx4 {
 		manager.register(new WelcomerHandler(this));
 		manager.register(new LeaverHandler(this));
 		manager.register(new StarboardHandler(this));
-		manager.register(new TriggerHandler(this));
+		manager.register(this.triggerHandler);
 		manager.register(new ServerStatsHandler(this));
 		manager.register(new SelfRoleHandler(this));
 		manager.register(new MuteHandler(this));
@@ -658,6 +660,10 @@ public class Sx4 {
 
 	public EntitlementsHandler getEntitlementsHandler() {
 		return this.entitlementsHandler;
+	}
+
+	public TriggerHandler getTriggerHandler() {
+		return this.triggerHandler;
 	}
 
 	public ShardManager createShardManager(IEventManager manager) {

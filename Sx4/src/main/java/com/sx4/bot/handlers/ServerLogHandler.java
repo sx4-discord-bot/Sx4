@@ -1,19 +1,14 @@
 package com.sx4.bot.handlers;
 
-import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.WebhookClientBuilder;
-import club.minnced.discord.webhook.send.WebhookEmbed;
-import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
 import net.dv8tion.jda.api.audit.AuditLogEntry;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.guild.GuildJoinEvent;
 import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
@@ -36,18 +31,22 @@ import java.util.concurrent.TimeUnit;
 public class ServerLogHandler implements EventListener {
 
 	private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-	private final WebhookClient webhook;
+	private WebhookClient<Message> webhook;
 
 	private final Sx4 bot;
 
 	public ServerLogHandler(Sx4 bot) {
 		this.bot = bot;
 
-		this.webhook = new WebhookClientBuilder(this.bot.getConfig().getGuildsWebhookId(), this.bot.getConfig().getGuildsWebhookToken())
-			.setHttpClient(this.bot.getHttpClient())
-			.build();
-
 		this.postGuildCount();
+	}
+
+	private WebhookClient<Message> getWebhook(JDA jda) {
+		if (this.webhook == null) {
+			this.webhook = WebhookClient.createClient(jda, Long.toString(this.bot.getConfig().getGuildsWebhookId()), this.bot.getConfig().getGuildsWebhookToken());
+		}
+
+		return this.webhook;
 	}
 
 	public void postGuildCount() {
@@ -83,18 +82,18 @@ public class ServerLogHandler implements EventListener {
 		ShardManager manager = event.getJDA().getShardManager();
 		Member owner = event.getGuild().getOwner();
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+		EmbedBuilder embed = new EmbedBuilder()
 			.setColor(this.bot.getConfig().getGreen())
-			.setThumbnailUrl(event.getGuild().getIconUrl())
+			.setThumbnail(event.getGuild().getIconUrl())
 			.setTimestamp(Instant.now())
 			.setDescription(String.format("I am now in %,d servers and connected to %,d users", manager.getGuildCache().size(), manager.getUserCache().size()))
-			.setAuthor(new WebhookEmbed.EmbedAuthor("Joined Server!", event.getJDA().getSelfUser().getEffectiveAvatarUrl(), null))
-			.addField(new WebhookEmbed.EmbedField(true, "Server Name", event.getGuild().getName()))
-			.addField(new WebhookEmbed.EmbedField(true, "Server ID", event.getGuild().getId()))
-			.addField(new WebhookEmbed.EmbedField(true, "Server Owner", (owner == null ? "Anonymous#0000" : owner.getUser().getAsTag()) + "\n" + event.getGuild().getOwnerId()))
-			.addField(new WebhookEmbed.EmbedField(true, "Server Members", String.format("%,d member%s", event.getGuild().getMemberCount(), event.getGuild().getMemberCount() == 1 ? "" : "s")));
+			.setAuthor("Joined Server!", null, event.getJDA().getSelfUser().getEffectiveAvatarUrl())
+			.addField("Server Name", event.getGuild().getName(), true)
+			.addField("Server ID", event.getGuild().getId(), true)
+			.addField("Server Owner", (owner == null ? "Anonymous#0000" : owner.getUser().getAsTag()) + "\n" + event.getGuild().getOwnerId(), true)
+			.addField("Server Members", String.format("%,d member%s", event.getGuild().getMemberCount(), event.getGuild().getMemberCount() == 1 ? "" : "s"), true);
 
-		this.webhook.send(embed.build());
+		this.getWebhook(event.getJDA()).sendMessageEmbeds(embed.build()).queue();
 
 		if (event.getGuild().getSelfMember().hasPermission(Permission.VIEW_AUDIT_LOGS)) {
 			event.getGuild().retrieveAuditLogs().type(ActionType.BOT_ADD).queueAfter(500, TimeUnit.MILLISECONDS, audits -> {
@@ -126,19 +125,19 @@ public class ServerLogHandler implements EventListener {
 		ShardManager manager = event.getJDA().getShardManager();
 		Member owner = event.getGuild().getOwner();
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+		EmbedBuilder embed = new EmbedBuilder()
 			.setColor(this.bot.getConfig().getRed())
-			.setThumbnailUrl(event.getGuild().getIconUrl())
+			.setThumbnail(event.getGuild().getIconUrl())
 			.setTimestamp(Instant.now())
 			.setDescription(String.format("I am now in %,d servers and connected to %,d users", manager.getGuildCache().size(), manager.getUserCache().size()))
-			.setAuthor(new WebhookEmbed.EmbedAuthor("Left Server!", event.getJDA().getSelfUser().getEffectiveAvatarUrl(), null))
-			.addField(new WebhookEmbed.EmbedField(true, "Server Name", event.getGuild().getName()))
-			.addField(new WebhookEmbed.EmbedField(true, "Server ID", event.getGuild().getId()))
-			.addField(new WebhookEmbed.EmbedField(true, "Server Owner", (owner == null ? "Anonymous#0000" : owner.getUser().getAsTag()) + "\n" + event.getGuild().getOwnerId()))
-			.addField(new WebhookEmbed.EmbedField(true, "Server Members", String.format("%,d member%s", event.getGuild().getMemberCount(), event.getGuild().getMemberCount() == 1 ? "" : "s")))
-			.addField(new WebhookEmbed.EmbedField(false, "Stayed for", TimeUtility.LONG_TIME_FORMATTER.parse(Duration.between(event.getGuild().getSelfMember().getTimeJoined(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds())));
+			.setAuthor("Left Server!", null, event.getJDA().getSelfUser().getEffectiveAvatarUrl())
+			.addField("Server Name", event.getGuild().getName(), true)
+			.addField("Server ID", event.getGuild().getId(), true)
+			.addField("Server Owner", (owner == null ? "Anonymous#0000" : owner.getUser().getAsTag()) + "\n" + event.getGuild().getOwnerId(), true)
+			.addField("Server Members", String.format("%,d member%s", event.getGuild().getMemberCount(), event.getGuild().getMemberCount() == 1 ? "" : "s"), true)
+			.addField("Stayed for", TimeUtility.LONG_TIME_FORMATTER.parse(Duration.between(event.getGuild().getSelfMember().getTimeJoined(), ZonedDateTime.now(ZoneOffset.UTC)).toSeconds()), false);
 
-		this.webhook.send(embed.build());
+		this.getWebhook(event.getJDA()).sendMessageEmbeds(embed.build()).queue();
 	}
 
 	@Override

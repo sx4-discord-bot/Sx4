@@ -1,7 +1,5 @@
 package com.sx4.bot.commands.management;
 
-import club.minnced.discord.webhook.WebhookClient;
-import club.minnced.discord.webhook.send.WebhookEmbed;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
@@ -27,7 +25,9 @@ import com.sx4.bot.utility.ColourUtility;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.WebhookClient;
 import net.dv8tion.jda.api.entities.channel.attribute.IWebhookContainer;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
@@ -150,12 +150,12 @@ public class SuggestionCommand extends Sx4Command {
 
 		boolean premium = Clock.systemUTC().instant().getEpochSecond() < data.getEmbedded(List.of("premium", "endAt"), 0L);
 
-		event.getBot().getSuggestionManager().sendSuggestion(new WebhookChannel(channel), suggestionData.get("webhook", MongoDatabase.EMPTY_DOCUMENT), premium, suggestion.getWebhookEmbed(null, event.getAuthor(), state)).whenComplete((message, exception) -> {
+		event.getBot().getSuggestionManager().sendSuggestion(new WebhookChannel(channel), suggestionData.get("webhook", MongoDatabase.EMPTY_DOCUMENT), premium, suggestion.getEmbed(null, event.getAuthor(), state)).whenComplete((message, exception) -> {
 			if (ExceptionUtility.sendExceptionally(event, exception)) {
 				return;
 			}
 
-			suggestion.setMessageId(message.getId());
+			suggestion.setMessageId(message.getIdLong());
 
 			event.getMongo().insertSuggestion(suggestion.toData()).whenComplete((result, dataException) -> {
 				if (ExceptionUtility.sendExceptionally(event, dataException)) {
@@ -224,9 +224,9 @@ public class SuggestionCommand extends Sx4Command {
 					return;
 				}
 
-				WebhookClient webhook = event.getBot().getSuggestionManager().getWebhook(data.getLong("channelId"));
+				WebhookClient<Message> webhook = event.getBot().getSuggestionManager().getWebhook(data.getLong("channelId"));
 				if (webhook != null) {
-					webhook.delete(data.getLong("messageId"));
+					webhook.deleteMessageById(data.getLong("messageId")).queue();
 				}
 
 				event.replySuccess("That suggestion has been removed").queue();
@@ -296,9 +296,9 @@ public class SuggestionCommand extends Sx4Command {
 					.queue(null, ErrorResponseException.ignore(ErrorResponse.CANNOT_SEND_TO_USER));
 			}
 
-			WebhookEmbed embed = Suggestion.getWebhookEmbed(suggestionData.getObjectId("_id"), event.getAuthor(), author, suggestionData.getString("suggestion"), suggestionData.getString("image"), reason, new SuggestionState(state));
+			MessageEmbed embed = Suggestion.getEmbed(suggestionData.getObjectId("_id"), event.getAuthor(), author, suggestionData.getString("suggestion"), suggestionData.getString("image"), reason, new SuggestionState(state));
 
-			event.getBot().getSuggestionManager().editSuggestion(messageId, channel.getIdLong(), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed);
+			event.getBot().getSuggestionManager().editSuggestion(messageId, new WebhookChannel(channel), data.get("webhook", MongoDatabase.EMPTY_DOCUMENT), embed);
 
 			event.replySuccess("That suggestion has been set to the `" + stateData + "` state").queue();
 		});

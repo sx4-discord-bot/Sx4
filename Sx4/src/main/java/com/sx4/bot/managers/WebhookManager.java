@@ -1,13 +1,14 @@
 package com.sx4.bot.managers;
 
-import com.sx4.bot.entities.webhook.WebhookClient;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.WebhookClient;
 
 public interface WebhookManager {
 
-	WebhookClient getWebhook(long id);
+	WebhookClient<Message> getWebhook(long id);
 
-	WebhookClient removeWebhook(long id);
+	WebhookClient<Message> removeWebhook(long id);
 
-	void putWebhook(long id, WebhookClient webhook);
+	void putWebhook(long id, WebhookClient<Message> webhook);
 
 }

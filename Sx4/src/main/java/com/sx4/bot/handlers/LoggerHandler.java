@@ -1,10 +1,5 @@
 package com.sx4.bot.handlers;
 
-import club.minnced.discord.webhook.send.WebhookEmbed;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedAuthor;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedField;
-import club.minnced.discord.webhook.send.WebhookEmbed.EmbedFooter;
-import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.mongodb.client.model.Accumulators;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
@@ -25,6 +20,7 @@ import gnu.trove.map.TLongIntMap;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongIntHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.audit.ActionType;
@@ -135,11 +131,11 @@ public class LoggerHandler implements EventListener {
 		return this.managers.remove(channelId);
 	}
 
-	public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, WebhookEmbed... embeds) {
+	public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, MessageEmbed... embeds) {
 		this.queue(guild, loggers, event, context, Arrays.asList(embeds));
 	}
 
-	public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, List<WebhookEmbed> embeds) {
+	public void queue(Guild guild, List<Document> loggers, LoggerEvent event, LoggerContext context, List<MessageEmbed> embeds) {
 		List<Long> deletedLoggers = new ArrayList<>();
 		for (Document logger : loggers) {
 			if (!LoggerUtility.canSend(logger, event, context)) {
@@ -257,24 +253,24 @@ public class LoggerHandler implements EventListener {
 				return;
 			}
 
-			WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+			EmbedBuilder embed = new EmbedBuilder()
 				.setColor(this.bot.getConfig().getRed())
 				.setTimestamp(Instant.now())
-				.setFooter(new EmbedFooter("Message ID: " + event.getMessageId(), null));
+				.setFooter("Message ID: " + event.getMessageId());
 
 			StringBuilder description = new StringBuilder();
 			if (message == null) {
 				description.append(String.format("A message sent in %s was deleted", channel.getAsMention()));
-				embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+				embed.setAuthor(guild.getName(), null, guild.getIconUrl());
 			} else {
 				User author = message.getAuthor();
 
 				description.append(String.format("The message sent by `%s` in %s was deleted", author.getAsTag(), channel.getAsMention()));
-				embed.setAuthor(new EmbedAuthor(author.getAsTag(), author.getEffectiveAvatarUrl(), null));
+				embed.setAuthor(author.getAsTag(), null, author.getEffectiveAvatarUrl());
 
 				String content = message.getContent();
 				if (!content.isBlank()) {
-					embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
+					embed.addField("Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "..."), false);
 				}
 			}
 
@@ -335,12 +331,12 @@ public class LoggerHandler implements EventListener {
 
 			List<Document> entities = logger.getEmbedded(List.of("blacklist", "entities"), Collections.emptyList());
 
-			List<WebhookEmbed> embeds = new ArrayList<>();
+			List<MessageEmbed> embeds = new ArrayList<>();
 			for (String messageId : messageIds) {
-				WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+				EmbedBuilder embed = new EmbedBuilder()
 					.setColor(this.bot.getConfig().getRed())
 					.setTimestamp(Instant.now())
-					.setFooter(new EmbedFooter("Message ID: " + messageId, null));
+					.setFooter("Message ID: " + messageId);
 
 				LoggerContext loggerContext = new LoggerContext()
 					.setChannel(messageChannel);
@@ -358,7 +354,7 @@ public class LoggerHandler implements EventListener {
 					}
 
 					embed.setDescription(String.format("A message sent in %s was deleted %s", messageChannel.getAsMention(), reason));
-					embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
+					embed.setAuthor(guild.getName(), null, guild.getIconUrl());
 				} else {
 					User author = message.getAuthor();
 
@@ -369,11 +365,11 @@ public class LoggerHandler implements EventListener {
 					}
 
 					embed.setDescription(String.format("The message sent by `%s` in %s was deleted %s", author.getName(), messageChannel.getAsMention(), reason));
-					embed.setAuthor(new EmbedAuthor(author.getAsTag(), author.getEffectiveAvatarUrl(), null));
+					embed.setAuthor(author.getAsTag(), null, author.getEffectiveAvatarUrl());
 
 					String content = message.getContent();
 					if (!content.isBlank()) {
-						embed.addField(new EmbedField(false, "Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "...")));
+						embed.addField("Message", StringUtility.limit(content, MessageEmbed.VALUE_MAX_LENGTH, "..."), false);
 					}
 				}
 
@@ -455,25 +451,25 @@ public class LoggerHandler implements EventListener {
 			.setUser(user)
 			.setChannel(messageChannel);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		if (member != null) {
 			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", member.getEffectiveName(), message.getJumpUrl(), messageChannel.getAsMention()));
 		} else {
 			embed.setDescription(String.format("`%s` edited their [message](%s) in %s", user.getName(), message.getJumpUrl(), messageChannel.getAsMention()));
 		}
 
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
-		embed.setFooter(new EmbedFooter(String.format("Message ID: %s", message.getId()), null));
+		embed.setFooter(String.format("Message ID: %s", message.getId()));
 
 		String oldContent = previousMessage == null ? null : previousMessage.getContent();
 		if (oldContent != null && !oldContent.isBlank()) {
-			embed.addField(new EmbedField(false, "Before", StringUtility.limit(oldContent, MessageEmbed.VALUE_MAX_LENGTH, "...")));
+			embed.addField("Before", StringUtility.limit(oldContent, MessageEmbed.VALUE_MAX_LENGTH, "..."), false);
 		}
 
 		if (!message.getContentRaw().isBlank()) {
-			embed.addField(new EmbedField(false, "After", StringUtility.limit(message.getContentRaw(), MessageEmbed.VALUE_MAX_LENGTH, String.format("[...](%s)", message.getJumpUrl()))));
+			embed.addField("After", StringUtility.limit(message.getContentRaw(), MessageEmbed.VALUE_MAX_LENGTH, String.format("[...](%s)", message.getJumpUrl())), false);
 		}
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
@@ -500,11 +496,11 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setUser(user);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(this.bot.getConfig().getGreen());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", user.isBot() ? "Bot" : "User", member.getId()), null));
+		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
+		embed.setFooter(String.format("%s ID: %s", user.isBot() ? "Bot" : "User", member.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -561,15 +557,15 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setUser(user);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("`%s` just left the server", user.getName()));
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
+		embed.setFooter(String.format("User ID: %s", user.getId()));
 
 		if (rolesMessage.length() != 0) {
-			embed.addField(new EmbedField(true, "Roles", rolesMessage));
+			embed.addField("Roles", rolesMessage, true);
 		}
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
@@ -616,12 +612,12 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setUser(user);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("`%s` has been banned", user.getName()));
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
+		embed.setFooter(String.format("User ID: %s", user.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -661,12 +657,12 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setUser(user);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("`%s` has been unbanned", user.getName()));
 		embed.setColor(this.bot.getConfig().getGreen());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
+		embed.setFooter(String.format("User ID: %s", user.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -709,12 +705,12 @@ public class LoggerHandler implements EventListener {
 			.setUser(user)
 			.setChannel(channel);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder()
+		EmbedBuilder embed = new EmbedBuilder()
 			.setDescription(String.format("`%s` just joined the voice channel %s", member.getEffectiveName(), channel.getAsMention()))
 			.setColor(this.bot.getConfig().getGreen())
 			.setTimestamp(Instant.now())
-			.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null))
-			.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+			.setFooter(String.format("User ID: %s", member.getId()))
+			.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
@@ -741,12 +737,12 @@ public class LoggerHandler implements EventListener {
 			.setChannel(channel)
 			.setUser(user);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("`%s` just left the voice channel %s", member.getEffectiveName(), channel.getAsMention()));
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
+		embed.setFooter(String.format("User ID: %s", user.getId()));
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
@@ -813,14 +809,14 @@ public class LoggerHandler implements EventListener {
 			.setChannel(joined)
 			.setUser(user);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("`%s` just changed voice channel", member.getEffectiveName()));
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
+		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
 
-		embed.addField(new EmbedField(false, "Before", String.format("`%s`", left.getName())));
-		embed.addField(new EmbedField(false, "After", String.format("`%s`", joined.getName())));
+		embed.addField("Before", String.format("`%s`", left.getName()), false);
+		embed.addField("After", String.format("`%s`", joined.getName()), false);
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {
@@ -896,11 +892,11 @@ public class LoggerHandler implements EventListener {
 			.setUser(user)
 			.setChannel(channel == null ? 0L : channel.getIdLong());
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), muted ? "muted" : "unmuted"));
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setFooter(String.format("User ID: %s", user.getId()));
 		embed.setColor(muted ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
@@ -949,11 +945,11 @@ public class LoggerHandler implements EventListener {
 			.setChannel(channel == null ? 0L : channel.getIdLong())
 			.setUser(user);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("`%s` has been %s", member.getEffectiveName(), deafened ? "deafened" : "undeafened"));
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(member.getUser().getAsTag(), member.getUser().getEffectiveAvatarUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+		embed.setAuthor(member.getUser().getAsTag(), null, member.getUser().getEffectiveAvatarUrl());
+		embed.setFooter(String.format("User ID: %s", user.getId()));
 		embed.setColor(deafened ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
@@ -1018,11 +1014,11 @@ public class LoggerHandler implements EventListener {
 		StringBuilder description = new StringBuilder();
 		description.append(String.format("The %s %s has had permission overrides created for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), event.isRoleOverride() ? event.getRole().getAsMention() : "`" + event.getMember().getEffectiveName() + "`"));
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(this.bot.getConfig().getGreen());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1093,11 +1089,11 @@ public class LoggerHandler implements EventListener {
 
 		StringBuilder description = new StringBuilder(String.format("The %s %s has had permission overrides updated for %s", LoggerUtility.getChannelTypeReadable(channelType), channelType == ChannelType.CATEGORY ? "`" + channel.getName() + "`" : channel.getAsMention(), event.isRoleOverride() ? event.getRole().getAsMention() : "`" + event.getMember().getEffectiveName() + "`"));
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("%s ID: %s", event.isRoleOverride() ? "Role" : "User", permissionHolder.getIdLong()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1170,11 +1166,11 @@ public class LoggerHandler implements EventListener {
 			.setRole(roleOverride && role != null ? role.getIdLong() : 0L)
 			.setChannel(channel);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", roleOverride ? "Role" : "User", permissionHolder.getIdLong()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("%s ID: %s", roleOverride ? "Role" : "User", permissionHolder.getIdLong()));
 
 		List<Document> documents =	this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1228,12 +1224,12 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setChannel(channel);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("The %s `%s` has just been deleted", typeReadable, channel.getName()));
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1287,12 +1283,12 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setChannel(channel);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("The %s %s has just been created", typeReadable, channel.getAsMention()));
 		embed.setColor(this.bot.getConfig().getGreen());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1346,15 +1342,15 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setChannel(channel);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("The %s `%s` has just been renamed", typeReadable, channel.getName()));
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("%s ID: %s", channel.getType() == ChannelType.CATEGORY ? "Category" : "Channel", channel.getId()));
 
-		embed.addField(new EmbedField(false, "Before", String.format("`%s`", oldName)));
-		embed.addField(new EmbedField(false, "After", String.format("`%s`", channel.getName())));
+		embed.addField("Before", String.format("`%s`", oldName), false);
+		embed.addField("After", String.format("`%s`", channel.getName()), false);
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1410,12 +1406,12 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setRole(role);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("The role %s has been created", role.getAsMention()));
 		embed.setColor(this.bot.getConfig().getGreen());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("Role ID: %s", role.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1455,12 +1451,12 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setRole(role);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("The role `%s` has been deleted", role.getName()));
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("Role ID: %s", role.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1500,15 +1496,15 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setRole(role);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("The role %s has been renamed", role.getAsMention()));
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("Role ID: %s", role.getId()));
 
-		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
-		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
+		embed.addField("Before", String.format("`%s`", event.getOldName()), false);
+		embed.addField("After", String.format("`%s`", event.getNewName()), false);
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1550,17 +1546,17 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setRole(role);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("The role %s has been given a new colour", role.getAsMention()));
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("Role ID: %s", role.getId()));
 
 		int oldColour = event.getOldColorRaw(), newColour = event.getNewColorRaw();
 
-		embed.addField(new EmbedField(false, "Before", String.format("Hex: [#%s](%3$s)\nRGB: [%2$s](%3$s)", ColourUtility.toHexString(oldColour), ColourUtility.toRGBString(oldColour), "https://image.sx4.dev/api/colour?w=1000&h=500&colour=" + oldColour)));
-		embed.addField(new EmbedField(false, "After", String.format("Hex: [#%s](%3$s)\nRGB: [%2$s](%3$s)", ColourUtility.toHexString(newColour), ColourUtility.toRGBString(newColour), "https://image.sx4.dev/api/colour?w=1000&h=500&colour=" + newColour)));
+		embed.addField("Before", String.format("Hex: [#%s](%3$s)\nRGB: [%2$s](%3$s)", ColourUtility.toHexString(oldColour), ColourUtility.toRGBString(oldColour), "https://image.sx4.dev/api/colour?w=1000&h=500&colour=" + oldColour), false);
+		embed.addField("After", String.format("Hex: [#%s](%3$s)\nRGB: [%2$s](%3$s)", ColourUtility.toHexString(newColour), ColourUtility.toRGBString(newColour), "https://image.sx4.dev/api/colour?w=1000&h=500&colour=" + newColour), false);
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1607,11 +1603,11 @@ public class LoggerHandler implements EventListener {
 			return;
 		}
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Role ID: %s", role.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("Role ID: %s", role.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1669,10 +1665,10 @@ public class LoggerHandler implements EventListener {
 
 		StringBuilder description = new StringBuilder();
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(this.bot.getConfig().getGreen());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
 
 		if (multiple) {
 			StringBuilder builder = new StringBuilder();
@@ -1699,7 +1695,7 @@ public class LoggerHandler implements EventListener {
 			description.append(String.format("The roles %s have been added to `%s`", builder, member.getEffectiveName()));
 		} else {
 			description.append(String.format("The role %s has been added to `%s`", firstRole.getAsMention(), member.getEffectiveName()));
-			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
+			embed.setFooter(String.format("Role ID: %s", firstRole.getId()));
 		}
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
@@ -1774,10 +1770,10 @@ public class LoggerHandler implements EventListener {
 			.setRole(multiple ? 0L : firstRole.getIdLong())
 			.setUser(user);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
+		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
 
 		boolean deleted;
 		if (multiple) {
@@ -1810,7 +1806,7 @@ public class LoggerHandler implements EventListener {
 			deleted = guild.getRoleById(firstRole.getIdLong()) == null;
 
 			description.append(String.format("The role %s has been removed from `%s`", deleted ? "`" + firstRole.getName() + "`" : firstRole.getAsMention(), member.getEffectiveName()));
-			embed.setFooter(new EmbedFooter(String.format("Role ID: %s", firstRole.getId()), null));
+			embed.setFooter(String.format("Role ID: %s", firstRole.getId()));
 
 			if (deleted) {
 				description.append(" by **role deletion**");
@@ -1878,15 +1874,15 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setUser(user);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("`%s` has had their nickname changed", member.getEffectiveName()));
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(user.getAsTag(), user.getEffectiveAvatarUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("User ID: %s", user.getId()), null));
+		embed.setAuthor(user.getAsTag(), null, user.getEffectiveAvatarUrl());
+		embed.setFooter(String.format("User ID: %s", user.getId()));
 
-		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldNickname() != null ? event.getOldNickname() : member.getUser().getName())));
-		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewNickname() != null ? event.getNewNickname() : member.getUser().getName())));
+		embed.addField("Before", String.format("`%s`", event.getOldNickname() != null ? event.getOldNickname() : member.getUser().getName()), false);
+		embed.addField("After", String.format("`%s`", event.getNewNickname() != null ? event.getNewNickname() : member.getUser().getName()), false);
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1931,11 +1927,11 @@ public class LoggerHandler implements EventListener {
 
 		StringBuilder description = new StringBuilder(String.format("`%s` has been %s a time-out", member.getUser().getAsTag(), muted ? "put on" : "removed from"));
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setColor(muted ? this.bot.getConfig().getRed() : this.bot.getConfig().getGreen());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("User ID: %s", member.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("User ID: %s", member.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -1984,12 +1980,12 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setEmoji(emoji);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("The emote %s has been created", emoji.getAsMention()));
 		embed.setColor(this.bot.getConfig().getGreen());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emoji.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("Emote ID: %s", emoji.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -2029,12 +2025,12 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setEmoji(emoji);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("The emote `%s` has been deleted", emoji.getName()));
 		embed.setColor(this.bot.getConfig().getRed());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emoji.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("Emote ID: %s", emoji.getId()));
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -2074,15 +2070,15 @@ public class LoggerHandler implements EventListener {
 		LoggerContext loggerContext = new LoggerContext()
 			.setEmoji(emoji);
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(String.format("The emote %s has been renamed", emoji.getAsMention()));
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emoji.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("Emote ID: %s", emoji.getId()));
 
-		embed.addField(new EmbedField(false, "Before", String.format("`%s`", event.getOldName())));
-		embed.addField(new EmbedField(false, "After", String.format("`%s`", event.getNewName())));
+		embed.addField("Before", String.format("`%s`", event.getOldName()), false);
+		embed.addField("After", String.format("`%s`", event.getNewName()), false);
 
 		List<Document> documents = this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).get();
 		if (documents.isEmpty()) {
@@ -2137,12 +2133,12 @@ public class LoggerHandler implements EventListener {
 
 		description.append(LoggerUtility.getRoleDifferenceMessage(rolesRemoved, rolesAdded, description.length()));
 
-		WebhookEmbedBuilder embed = new WebhookEmbedBuilder();
+		EmbedBuilder embed = new EmbedBuilder();
 		embed.setDescription(description.toString());
 		embed.setColor(this.bot.getConfig().getOrange());
 		embed.setTimestamp(Instant.now());
-		embed.setAuthor(new EmbedAuthor(guild.getName(), guild.getIconUrl(), null));
-		embed.setFooter(new EmbedFooter(String.format("Emote ID: %s", emoji.getId()), null));
+		embed.setAuthor(guild.getName(), null, guild.getIconUrl());
+		embed.setFooter(String.format("Emote ID: %s", emoji.getId()));
 
 		this.bot.getMongo().aggregateLoggers(this.getPipeline(guild.getIdLong())).whenComplete((documents, exception) -> {
 			if (ExceptionUtility.sendErrorMessage(exception)) {

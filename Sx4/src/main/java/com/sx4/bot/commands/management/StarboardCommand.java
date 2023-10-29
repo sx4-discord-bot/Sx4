@@ -1,6 +1,5 @@
 package com.sx4.bot.commands.management;
 
-import club.minnced.discord.webhook.WebhookClient;
 import com.jockie.bot.core.argument.Argument;
 import com.jockie.bot.core.command.Command;
 import com.mongodb.client.model.*;
@@ -23,9 +22,7 @@ import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.ExceptionUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.attribute.IWebhookContainer;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
@@ -182,9 +179,9 @@ public class StarboardCommand extends Sx4Command {
 
 				Document data = atomicData.get();
 
-				WebhookClient webhook = event.getBot().getStarboardManager().getWebhook(data.getLong("channelId"));
+				WebhookClient<Message> webhook = event.getBot().getStarboardManager().getWebhook(data.getLong("channelId"));
 				if (webhook != null) {
-					webhook.delete(data.getLong("messageId"));
+					webhook.deleteMessageById(data.getLong("messageId")).queue();
 				}
 
 				event.replySuccess("That starboard has been deleted").queue();

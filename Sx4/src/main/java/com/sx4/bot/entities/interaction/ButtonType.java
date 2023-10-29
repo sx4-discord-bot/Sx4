@@ -1,5 +1,7 @@
 package com.sx4.bot.entities.interaction;
 
+import java.util.function.Function;
+
 public enum ButtonType {
 
 	MARRIAGE_CONFIRM(0),
@@ -27,16 +29,29 @@ public enum ButtonType {
 	TRIGGER_VARIABLE_PURGE_CONFIRM(22),
 	SHIP_SWIPE_RIGHT(23),
 	TRIGGER_UPDATE_CONFIRM(24),
-	TRIGGER_UPDATE_VIEW(25);
+	TRIGGER_UPDATE_VIEW(25),
+	TRIGGER_BUTTON_CLICKED(26);
 
 	private final int id;
+	private final Function<String, ? extends CustomButtonId> mapping;
 
 	private ButtonType(int id) {
 		this.id = id;
+		this.mapping = CustomButtonId::fromId;
+	}
+
+	// TODO: Create a GenericButtonId which can be extended allowing for custom string ids
+	private ButtonType(int id, Function<String, ? extends CustomButtonId> mapping) {
+		this.id = id;
+		this.mapping = mapping;
 	}
 
 	public int getId() {
 		return this.id;
+	}
+
+	public CustomButtonId applyMapping(String id) {
+		return this.mapping.apply(id);
 	}
 
 	public static ButtonType fromId(int id) {

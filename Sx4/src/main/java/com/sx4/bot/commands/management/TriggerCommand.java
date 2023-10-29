@@ -20,6 +20,7 @@ import com.sx4.bot.entities.argument.Alternative;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.entities.trigger.TriggerActionType;
+import com.sx4.bot.entities.trigger.TriggerEventType;
 import com.sx4.bot.formatter.exception.FormatterException;
 import com.sx4.bot.formatter.input.InputFormatter;
 import com.sx4.bot.formatter.output.FormatterManager;
@@ -110,6 +111,7 @@ public class TriggerCommand extends Sx4Command {
 		}
 
 		Document data = new Document("trigger", trigger)
+			.append("type", TriggerEventType.MESSAGE_MATCHED.getId())
 			.append("guildId", event.getGuild().getIdLong())
 			.append("actions", List.of(action));
 
@@ -133,11 +135,24 @@ public class TriggerCommand extends Sx4Command {
 	@Examples({"trigger add whoami EXECUTE_COMMAND {\"command\": \"member info\"}", "trigger add \"lookup {text}\" REQUEST {\"url\": \"https://my-site.com/api/search?query={0}\"}"})
 	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 	public void add(Sx4CommandEvent event, @Argument(value="trigger") String trigger, @Argument(value="type") TriggerActionType type, @Argument(value="json", endless=true) Document data) {
+		this.add(event, TriggerEventType.MESSAGE_MATCHED, trigger, type, data);
+	}
+
+	@Command(value="add", description="Add a trigger to the server with a pre-defined action")
+	@CommandId(524)
+	@Examples({"trigger add BUTTON_CLICKED whoami EXECUTE_COMMAND {\"command\": \"member info\"}", "trigger add MESSAGE_MATCHED \"lookup {text}\" REQUEST {\"url\": \"https://my-site.com/api/search?query={0}\"}"})
+	@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
+	public void add(Sx4CommandEvent event, @Argument(value="event type") TriggerEventType eventType, @Argument(value="trigger") String trigger, @Argument(value="type") TriggerActionType type, @Argument(value="json", endless=true) Document data) {
 		InputFormatter formatter = new InputFormatter(trigger);
 		try {
 			formatter.getNodes();
 		} catch (FormatterException exception) {
 			event.replyFailure(exception.getMessage()).queue();
+			return;
+		}
+
+		if (!type.isAllowedEvent(eventType)) {
+			event.replyFailure("That trigger action type cannot be used for message matching triggers").queue();
 			return;
 		}
 
@@ -150,6 +165,7 @@ public class TriggerCommand extends Sx4Command {
 		}
 
 		Document triggerData = new Document("trigger", trigger)
+			.append("type", eventType.getId())
 			.append("guildId", event.getGuild().getIdLong())
 			.append("actions", List.of(action));
 
@@ -295,6 +311,7 @@ public class TriggerCommand extends Sx4Command {
 		}
 
 		Document data = new Document("trigger", trigger)
+			.append("type", TriggerEventType.MESSAGE_MATCHED.getId())
 			.append("guildId", event.getGuild().getIdLong())
 			.append("actions", List.of(action));
 
@@ -832,7 +849,7 @@ public class TriggerCommand extends Sx4Command {
 		@Examples({"trigger template upload 600968f92850ef72c9af8756 Multiply Multiplies 2 numbers together"})
 		@AuthorPermissions(permissions={Permission.MANAGE_SERVER})
 		public void upload(Sx4CommandEvent event, @Argument(value="trigger id") ObjectId id, @Argument(value="name") @Limit(max=25) String name, @Argument(value="description", endless=true) @Limit(max=500) String description) {
-			Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("_id", "trigger", "actions", "template", "case", "format"));
+			Document trigger = event.getMongo().getTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), Projections.include("_id", "trigger", "type", "actions", "template", "case", "format"));
 			if (trigger == null) {
 				event.replyFailure("I could not find that trigger").queue();
 				return;
@@ -941,6 +958,7 @@ public class TriggerCommand extends Sx4Command {
 			paged.onSelect(select -> {
 				Document template = select.getSelected();
 				Document trigger = template.get("data", Document.class);
+				TriggerEventType eventType = TriggerEventType.fromId(trigger.getInteger("type"));
 
 				List<Document> actions = trigger.getList("actions", Document.class);
 				actions.sort(Comparator.comparingInt(action -> action.getInteger("order", -1)));
@@ -951,7 +969,7 @@ public class TriggerCommand extends Sx4Command {
 					.setCustomFunction(page -> {
 						EmbedBuilder embed = new EmbedBuilder();
 						embed.setTitle(template.getString("name") + " (" + template.getObjectId("_id").toHexString() + ")");
-						embed.setDescription("This trigger will be executed when someone sends a message matching `" + trigger.getString("trigger") + "`");
+						embed.setDescription("This trigger will be executed when someone " + (eventType.equals(TriggerEventType.MESSAGE_MATCHED) ? "sends a message" : "clicks a button") + " matching `" + trigger.getString("trigger") + "`");
 
 						int uses = template.getInteger("uses");
 						embed.setFooter("Used " + uses + " time" + (uses == 1 ? "" : "s") + " | Version " + template.getInteger("version"));

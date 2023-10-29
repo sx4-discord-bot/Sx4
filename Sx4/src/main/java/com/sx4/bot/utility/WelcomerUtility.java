@@ -1,6 +1,5 @@
 package com.sx4.bot.utility;
 
-import club.minnced.discord.webhook.send.WebhookMessageBuilder;
 import com.sx4.bot.config.Config;
 import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.formatter.output.Formatter;
@@ -9,6 +8,8 @@ import com.sx4.bot.http.HttpCallback;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.utils.FileUpload;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 
@@ -18,7 +19,7 @@ import java.util.function.BiConsumer;
 
 public class WelcomerUtility {
 
-	public static void getWelcomerMessage(OkHttpClient httpClient, Document messageData, String bannerId, Member member, boolean canary, boolean image, boolean gif, BiConsumer<WebhookMessageBuilder, Throwable> consumer) {
+	public static void getWelcomerMessage(OkHttpClient httpClient, Document messageData, String bannerId, Member member, boolean canary, boolean image, boolean gif, BiConsumer<MessageCreateBuilder, Throwable> consumer) {
 		Guild guild = member.getGuild();
 		User user = member.getUser();
 		OffsetDateTime now = OffsetDateTime.now();
@@ -31,16 +32,16 @@ public class WelcomerUtility {
 			.addVariable("now", now);
 
 		if (!image) {
-			WebhookMessageBuilder builder;
+			MessageCreateBuilder builder;
 			if (messageData != null) {
 				try {
-					builder = MessageUtility.fromJson(formatter.parse(), true);
+					builder = MessageUtility.fromCreateJson(formatter.parse(), true);
 				} catch (IllegalArgumentException e) {
 					consumer.accept(null, e);
 					return;
 				}
 			} else {
-				builder = new WebhookMessageBuilder();
+				builder = new MessageCreateBuilder();
 			}
 
 			consumer.accept(builder, null);
@@ -60,19 +61,19 @@ public class WelcomerUtility {
 					String fileName = "welcomer." + response.header("Content-Type").split("/")[1];
 					formatter.addVariable("file.name", fileName).addVariable("file.url", "attachment://" + fileName);
 
-					WebhookMessageBuilder builder;
+					MessageCreateBuilder builder;
 					if (messageData == null) {
-						builder = new WebhookMessageBuilder();
+						builder = new MessageCreateBuilder();
 					} else {
 						try {
-							builder = MessageUtility.fromJson(formatter.parse(), true);
+							builder = MessageUtility.fromCreateJson(formatter.parse(), true);
 						} catch (IllegalArgumentException e) {
 							consumer.accept(null, e);
 							return;
 						}
 					}
 
-					builder.addFile(fileName, response.body().bytes());
+					builder.addFiles(FileUpload.fromData(response.body().bytes(), fileName));
 
 					consumer.accept(builder, null);
 				} else {
