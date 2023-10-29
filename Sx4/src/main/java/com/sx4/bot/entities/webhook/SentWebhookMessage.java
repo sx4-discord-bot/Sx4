@@ -14,7 +14,7 @@ public class SentWebhookMessage extends ReceivedMessage {
 			message.getApplicationIdLong(), message.isTTS(), message.isPinned(), message.getContentRaw(), message.getNonce(),
 			message.getAuthor(), message.getMember(), message.getActivity(), message.getTimeEdited(), message.getMentions(),
 			message.getReactions(), message.getAttachments(), message.getEmbeds(), message.getStickers(), message.getActionRows(),
-			(int) message.getFlagsRaw(), message.getInteraction(), message.getStartedThread(), message.getApproximatePosition()
+			(int) message.getFlagsRaw(), message.getInteraction(), message.getStartedThread(), message.getChannelType().isThread() ? message.getApproximatePosition() : -1
 		);
 
 		this.webhookId = webhookId;
