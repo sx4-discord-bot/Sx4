@@ -34,17 +34,35 @@ public class SteamEndpoint {
 
 	private final Document success, failure;
 
+	private final String ns, claimedId, identity;
+
 	private final Sx4 bot;
 
 	public SteamEndpoint(Sx4 bot) throws IOException {
 		this.bot = bot;
 		this.success = Jsoup.parse(new File("resources/steam_success.html"), "UTF-8", "");
 		this.failure = Jsoup.parse(new File("resources/steam_failure.html"), "UTF-8", "");
+
+		this.ns = "http://specs.openid.net/auth/2.0";
+		this.claimedId = "https://steamcommunity.com/openid/id/";
+		this.identity = "https://steamcommunity.com/openid/id/";
 	}
 
 	public String setText(Document document, String text) {
 		document.select("h1").first().text(text);
 		return document.html();
+	}
+
+	private boolean isResponseValid(String body) {
+		String[] lines = body.split("\n");
+		for (String line : lines) {
+			String[] keyValue = line.split(":");
+			if (keyValue[0].equals("is_valid") && keyValue[1].equals("true")) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	@GET
@@ -69,6 +87,7 @@ public class SteamEndpoint {
 
 		if (!hash.equals(signature)) {
 			response.resume(Response.status(401).entity(this.setText(failureCopy, "Unauthorized")).build());
+			return;
 		}
 
 		StringBuilder url = new StringBuilder("https://steamcommunity.com/openid/login");
@@ -76,6 +95,12 @@ public class SteamEndpoint {
 		MultivaluedMap<String, String> parameters = info.getQueryParameters();
 		boolean first = true;
 		for (String key : parameters.keySet()) {
+			String value = parameters.get(key).get(0);
+			if ((key.equals("openid.ns") && !value.equals(this.ns)) || (key.equals("openid.claimed_id") && !value.startsWith(this.claimedId)) || (key.equals("openid.identity") && !value.startsWith(this.identity))) {
+				response.resume(Response.status(401).entity(this.setText(failureCopy, "Unauthorized")).build());
+				return;
+			}
+
 			if (first) {
 				url.append("?");
 				first = false;
@@ -83,7 +108,7 @@ public class SteamEndpoint {
 				url.append("&");
 			}
 
-			url.append(key).append("=").append(URLEncoder.encode(key.equals("openid.mode") ? "check_authentication" : parameters.get(key).get(0), StandardCharsets.UTF_8));
+			url.append(key).append("=").append(URLEncoder.encode(key.equals("openid.mode") ? "check_authentication" : value, StandardCharsets.UTF_8));
 		}
 
 		Request request = new Request.Builder()
@@ -93,13 +118,9 @@ public class SteamEndpoint {
 		this.bot.getHttpClient().newCall(request).enqueue((HttpCallback) steamResponse -> {
 			String body = steamResponse.body().string();
 
-			String[] lines = body.split("\n");
-			for (String line : lines) {
-				String[] keyValue = line.split(":");
-				if (keyValue[0].equals("is_valid") && !keyValue[1].equals("true")) {
-					response.resume(Response.status(401).entity(this.setText(failureCopy, "Unauthorized")).build());
-					return;
-				}
+			if (!this.isResponseValid(body)) {
+				response.resume(Response.status(401).entity(this.setText(failureCopy, "Unauthorized")).build());
+				return;
 			}
 
 			long steamId = Long.parseLong(identity.substring(identity.lastIndexOf('/') + 1));
