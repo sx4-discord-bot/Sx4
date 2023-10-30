@@ -11,6 +11,7 @@ import com.sx4.bot.cache.SteamGameCache;
 import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
+import com.sx4.bot.entities.argument.Or;
 import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.paged.MessagePagedResult;
 import com.sx4.bot.utility.HmacUtility;
@@ -18,7 +19,9 @@ import com.sx4.bot.utility.NumberUtility;
 import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import okhttp3.Request;
 import org.bson.Document;
@@ -193,10 +196,11 @@ public class SteamCommand extends Sx4Command {
 	@CommandId(212)
 	@Examples({"steam profile dog", "steam profile https://steamcommunity.com/id/dog"})
 	@BotPermissions(permissions={Permission.MESSAGE_EMBED_LINKS})
-	public void profile(Sx4CommandEvent event, @Argument(value="query", endless=true, nullDefault=true) String query) {
+	public void profile(Sx4CommandEvent event, @Argument(value="user | query", endless=true, nullDefault=true) Or<Member, String> query) {
 		List<Document> profiles;
-		if (query == null) {
-			List<Document> connections = event.getMongo().getUserById(event.getAuthor().getIdLong(), Projections.include("connections.steam")).getEmbedded(List.of("connections", "steam"), Collections.emptyList());
+		if (query == null || query.hasFirst()) {
+			User user = query == null ? event.getAuthor() : query.getFirst().getUser();
+			List<Document> connections = event.getMongo().getUserById(user.getIdLong(), Projections.include("connections.steam")).getEmbedded(List.of("connections", "steam"), Collections.emptyList());
 			if (connections.isEmpty()) {
 				event.replyFailure("You do not have a steam account linked, use `steam connect` to link an account or provide an argument to search").queue();
 				return;
@@ -206,7 +210,7 @@ public class SteamCommand extends Sx4Command {
 				.map(data -> data.append("url", "https://steamcommunity.com/profiles/" + data.getLong("id")))
 				.collect(Collectors.toList());
 		} else {
-			profiles = List.of(new Document("url", this.getProfileUrl(query)));
+			profiles = List.of(new Document("url", this.getProfileUrl(query.getSecond())));
 		}
 
 		MessagePagedResult<Document> paged = new MessagePagedResult.Builder<>(event.getBot(), profiles)
