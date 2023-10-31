@@ -231,7 +231,7 @@ public class StarboardHandler implements EventListener {
 						Route.CompiledRoute route = Route.Messages.ADD_REACTION.compile(createdMessage.getChannelId(), createdMessage.getId(), EncodingUtil.encodeReaction(emoji.getAsReactionCode()), "@me");
 						new RestActionImpl<>(event.getJDA(), route).queue(null, ErrorResponseException.ignore(ErrorResponse.UNKNOWN_EMOJI, ErrorResponse.MISSING_PERMISSIONS, ErrorResponse.MISSING_ACCESS));
 
-						this.bot.getMongo().updateStarboard(Filters.eq("originalMessageId", messageId), Updates.set("messageId", createdMessage.getId())).whenComplete(MongoDatabase.exceptionally());
+						this.bot.getMongo().updateStarboard(Filters.eq("originalMessageId", messageId), Updates.set("messageId", createdMessage.getIdLong())).whenComplete(MongoDatabase.exceptionally());
 					}
 				});
 			});
