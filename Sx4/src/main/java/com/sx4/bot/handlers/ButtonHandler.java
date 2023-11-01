@@ -713,7 +713,7 @@ public class ButtonHandler implements EventListener {
 		}).collect(Collectors.joining("&"));
 
 		EmbedBuilder builder = new EmbedBuilder(event.getMessage().getEmbeds().get(0))
-			.setImage(this.bot.getConfig().getImageWebserverUrl("line-graph") + "?x_header=Time&x_header=" + (joins ? "Members%20Joined" : "Messages%20Sent") + "&" + query);
+			.setImage(this.bot.getConfig().getImageWebserverUrl("line-graph") + "?x_header=Time&y_header=" + (joins ? "Members%20Joined" : "Messages%20Sent") + "&" + query);
 
 		CustomButtonId newButtonId = new CustomButtonId.Builder()
 			.setType(joins ? ButtonType.SHOW_SERVER_STATS_MESSAGES_GRAPH : ButtonType.SHOW_SERVER_STATS_JOIN_GRAPH)
