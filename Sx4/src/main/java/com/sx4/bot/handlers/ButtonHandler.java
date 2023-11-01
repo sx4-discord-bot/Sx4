@@ -2,6 +2,7 @@ package com.sx4.bot.handlers;
 
 import com.mongodb.client.model.*;
 import com.sx4.bot.commands.image.ShipCommand;
+import com.sx4.bot.commands.info.ServerStatsCommand;
 import com.sx4.bot.core.Sx4;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.database.mongo.model.Operators;
@@ -25,11 +26,13 @@ import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.GenericEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
 import net.dv8tion.jda.api.interactions.components.text.TextInput;
 import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 import net.dv8tion.jda.api.interactions.modals.Modal;
@@ -44,6 +47,9 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.jetbrains.annotations.NotNull;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -692,6 +698,32 @@ public class ButtonHandler implements EventListener {
 		});
 	}
 
+	public void handleServerStatsGraph(ButtonInteractionEvent event, CustomButtonId buttonId) {
+		List<Document> data = this.bot.getMongo().getServerStats(Filters.eq("guildId", event.getGuild().getIdLong()), MongoDatabase.EMPTY_DOCUMENT).into(new ArrayList<>());
+		if (data.isEmpty()) {
+			this.reply(event, "There is not server stats data on this server").queue();
+			return;
+		}
+
+		boolean joins = buttonId.getType() == ButtonType.SHOW_SERVER_STATS_JOIN_GRAPH.getId();
+
+		String query = data.stream().map(d -> {
+			String time = ServerStatsCommand.GRAPH_FORMATTER.format(d.getDate("time").toInstant().atOffset(ZoneOffset.UTC));
+			return URLEncoder.encode(time, StandardCharsets.UTF_8) + "=" + d.getInteger(joins ? "joins" : "messages");
+		}).collect(Collectors.joining("&"));
+
+		EmbedBuilder builder = new EmbedBuilder(event.getMessage().getEmbeds().get(0))
+			.setImage(this.bot.getConfig().getImageWebserverUrl("line-graph") + "?x_header=Time&x_header=" + (joins ? "Members%20Joined" : "Messages%20Sent") + "&" + query);
+
+		CustomButtonId newButtonId = new CustomButtonId.Builder()
+			.setType(joins ? ButtonType.SHOW_SERVER_STATS_MESSAGES_GRAPH : ButtonType.SHOW_SERVER_STATS_JOIN_GRAPH)
+			.build();
+
+		Button button = newButtonId.asButton(ButtonStyle.SECONDARY, "View " + (joins ? "Messages" : "Joins") + " Graph").withEmoji(Emoji.fromUnicode("\uD83D\uDCC8"));
+
+		event.editMessageEmbeds(builder.build()).setActionRow(button).queue();
+	}
+
 	@Override
 	public void onEvent(@NotNull GenericEvent genericEvent) {
 		if (!(genericEvent instanceof ButtonInteractionEvent event)) {
@@ -750,6 +782,7 @@ public class ButtonHandler implements EventListener {
 			case SHIP_SWIPE_RIGHT -> this.handleShipSwipeRight(event, customId);
 			case TRIGGER_UPDATE_VIEW -> this.handleTriggerUpdateView(event, customId);
 			case TRIGGER_UPDATE_CONFIRM -> this.handleTriggerUpdateConfirm(event, customId);
+			case SHOW_SERVER_STATS_MESSAGES_GRAPH, SHOW_SERVER_STATS_JOIN_GRAPH -> this.handleServerStatsGraph(event, customId);
 		}
 	}
 

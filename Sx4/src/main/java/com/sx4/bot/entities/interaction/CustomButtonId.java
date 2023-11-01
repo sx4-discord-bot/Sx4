@@ -27,6 +27,10 @@ public class CustomButtonId extends CustomInteractionId {
 	}
 
 	public boolean isOwner(long ownerId) {
+		if (this.owners.length == 1 && this.owners[0] == 0) {
+			return true;
+		}
+
 		for (long owner : this.owners) {
 			if (owner == ownerId) {
 				return true;
@@ -89,6 +93,12 @@ public class CustomButtonId extends CustomInteractionId {
 
 		public Builder setOwners(long... owners)  {
 			this.owners = owners;
+
+			return this;
+		}
+
+		public Builder setAnyOwner()  {
+			this.owners = new long[]{0};
 
 			return this;
 		}

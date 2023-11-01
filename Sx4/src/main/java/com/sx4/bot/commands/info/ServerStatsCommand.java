@@ -8,20 +8,30 @@ import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
 import com.sx4.bot.entities.info.ServerStatsType;
+import com.sx4.bot.entities.interaction.ButtonType;
+import com.sx4.bot.entities.interaction.CustomButtonId;
 import com.sx4.bot.managers.ServerStatsManager;
 import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
 import org.bson.Document;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 public class ServerStatsCommand extends Sx4Command {
+
+	public static final DateTimeFormatter GRAPH_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/uu hh:mm");
 
 	public ServerStatsCommand() {
 		super("server stats", 324);
@@ -79,6 +89,7 @@ public class ServerStatsCommand extends Sx4Command {
 			map.put(duration.toHours(), defaultStats);
 		}
 
+		StringJoiner dataPoints = new StringJoiner("&");
 		for (Document stats : data) {
 			Date time = stats.getDate("time");
 			Duration difference = Duration.between(time.toInstant(), currentHour);
@@ -96,23 +107,34 @@ public class ServerStatsCommand extends Sx4Command {
 				this.compute(map, 168, joins, messages);
 			}
 
+			String timeReadable = URLEncoder.encode(ServerStatsCommand.GRAPH_FORMATTER.format(time.toInstant().atOffset(ZoneOffset.UTC)), StandardCharsets.UTF_8);
+			dataPoints.add(timeReadable + "=" + messages);
+
 			lastUpdate = lastUpdate == null || lastUpdate.getTime() < time.getTime() ? time : lastUpdate;
 		}
+
+		CustomButtonId buttonId = new CustomButtonId.Builder()
+			.setType(ButtonType.SHOW_SERVER_STATS_JOIN_GRAPH)
+			.setAnyOwner()
+			.build();
 
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor("Server Stats", null, event.getGuild().getIconUrl())
 			.setFooter("Updated every hour")
+			.setImage(event.getConfig().getImageWebserverUrl("line-graph") + "?x_header=Time&y_header=Messages%20Sent&" + dataPoints)
 			.setTimestamp(lastUpdate.toInstant());
 
 		ServerStatsManager manager = event.getBot().getServerStatsManager();
 		for (long key : map.keySet()) {
 			Map<ServerStatsType, Integer> stats = map.get(key);
 			for (ServerStatsType type : stats.keySet()) {
-				embed.addField(StringUtility.title(type.getField()) + " (" + TimeUtility.LONG_TIME_FORMATTER.parse(Duration.of(key, ChronoUnit.HOURS)) + ")", String.format("%,d", stats.get(type) + (live ? manager.getCounter(event.getGuild().getIdLong(), type) : 0)), false);
+				embed.addField(StringUtility.title(type.getField()) + " (" + TimeUtility.LONG_TIME_FORMATTER.parse(Duration.of(key, ChronoUnit.HOURS)) + ")", String.format("%,d", stats.get(type) + (live ? manager.getCounter(event.getGuild().getIdLong(), type) : 0)), true);
 			}
 		}
 
-		event.reply(embed.build()).queue();
+		Button button = buttonId.asButton(ButtonStyle.SECONDARY, "View Joins Graph").withEmoji(Emoji.fromUnicode("\uD83D\uDCC8"));
+
+		event.reply(embed.build()).setActionRow(button).queue();
 	}
 
 }

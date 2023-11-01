@@ -30,7 +30,9 @@ public enum ButtonType {
 	SHIP_SWIPE_RIGHT(23),
 	TRIGGER_UPDATE_CONFIRM(24),
 	TRIGGER_UPDATE_VIEW(25),
-	TRIGGER_BUTTON_CLICKED(26);
+	TRIGGER_BUTTON_CLICKED(26),
+	SHOW_SERVER_STATS_JOIN_GRAPH(27),
+	SHOW_SERVER_STATS_MESSAGES_GRAPH(28);
 
 	private final int id;
 	private final Function<String, ? extends CustomButtonId> mapping;
