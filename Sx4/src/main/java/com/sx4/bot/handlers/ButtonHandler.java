@@ -709,7 +709,7 @@ public class ButtonHandler implements EventListener {
 
 		String query = data.stream().map(d -> {
 			String time = ServerStatsCommand.GRAPH_FORMATTER.format(d.getDate("time").toInstant().atOffset(ZoneOffset.UTC));
-			return URLEncoder.encode(time, StandardCharsets.UTF_8) + "=" + d.getInteger(joins ? "joins" : "messages");
+			return URLEncoder.encode(time, StandardCharsets.UTF_8) + "=" + d.getInteger(joins ? "joins" : "messages", 0);
 		}).collect(Collectors.joining("&"));
 
 		EmbedBuilder builder = new EmbedBuilder(event.getMessage().getEmbeds().get(0))
