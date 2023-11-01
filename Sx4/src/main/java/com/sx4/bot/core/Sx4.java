@@ -332,6 +332,8 @@ public class Sx4 {
 			.addVariable("content", "Gets the content of a message", Message.class, String.class, Message::getContentRaw)
 			.addVariable("channel", "Gets the channel the message is in", Message.class, MessageChannel.class, Message::getChannel)
 			.addVariable("length", "Gets the length of a string", String.class, Integer.class, String::length)
+			.addVariable("uppercase", "Gets the string in uppercase form", String.class, String.class, String::toUpperCase)
+			.addVariable("lowercase", "Gets the string in lowercase form", String.class, String.class, String::toLowerCase)
 			.addVariable("isNumber", "Gets whether or not this string is a number", String.class, Boolean.class, NumberUtility::isNumber)
 			.addVariable("urlEncode", "Encodes a string to a URL standard", String.class, String.class, string -> URLEncoder.encode(string, StandardCharsets.UTF_8))
 			.addVariable("status", "Gets the status code of the response", FormatterResponse.class, Integer.class, FormatterResponse::getStatus)
@@ -481,6 +483,10 @@ public class Sx4 {
 		}).addParser(Collection.class, text -> {
 			if (text.isEmpty() || text.charAt(0) != '[' || text.charAt(text.length() - 1) != ']') {
 				return null;
+			}
+
+			if (text.length() == 2) {
+				return Collections.emptyList();
 			}
 
 			FormatterParser<?> parser = formatterManager.getParser(Object.class);
