@@ -66,8 +66,11 @@ public class ImageRequest {
 		}
 
 		Request.Builder builder = new Request.Builder()
-			.url(this.url.toString())
-			.addHeader("Authorization", authorization);
+			.url(this.url.toString());
+
+		if (authorization != null) {
+			builder.addHeader("Authorization", authorization);
+		}
 
 		if (!this.fields.isEmpty()) {
 			builder.post(RequestBody.create(MediaType.parse("application/json"), this.fields.toJson()));

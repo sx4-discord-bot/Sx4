@@ -7,10 +7,13 @@ import com.sx4.bot.category.ModuleCategory;
 import com.sx4.bot.core.Sx4Command;
 import com.sx4.bot.core.Sx4CommandEvent;
 import com.sx4.bot.database.mongo.MongoDatabase;
+import com.sx4.bot.entities.image.ImageRequest;
 import com.sx4.bot.entities.info.ServerStatsType;
 import com.sx4.bot.entities.interaction.ButtonType;
 import com.sx4.bot.entities.interaction.CustomButtonId;
+import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.managers.ServerStatsManager;
+import com.sx4.bot.utility.ImageUtility;
 import com.sx4.bot.utility.StringUtility;
 import com.sx4.bot.utility.TimeUtility;
 import net.dv8tion.jda.api.EmbedBuilder;
@@ -18,10 +21,9 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
+import net.dv8tion.jda.api.utils.FileUpload;
 import org.bson.Document;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -89,6 +91,10 @@ public class ServerStatsCommand extends Sx4Command {
 			map.put(duration.toHours(), defaultStats);
 		}
 
+		ImageRequest request = new ImageRequest(event.getConfig().getImageWebserverUrl("line-graph"))
+			.addQuery("x_header", "Time")
+			.addQuery("y_header", "Messages Sent");
+
 		StringJoiner dataPoints = new StringJoiner("&");
 		for (Document stats : data) {
 			Date time = stats.getDate("time");
@@ -107,16 +113,11 @@ public class ServerStatsCommand extends Sx4Command {
 				this.compute(map, 168, joins, messages);
 			}
 
-			String timeReadable = URLEncoder.encode(ServerStatsCommand.GRAPH_FORMATTER.format(time.toInstant().atOffset(ZoneOffset.UTC)), StandardCharsets.UTF_8);
-			dataPoints.add(timeReadable + "=" + messages);
+			String timeReadable = ServerStatsCommand.GRAPH_FORMATTER.format(time.toInstant().atOffset(ZoneOffset.UTC));
+			request.addField(timeReadable, messages);
 
 			lastUpdate = lastUpdate == null || lastUpdate.getTime() < time.getTime() ? time : lastUpdate;
 		}
-
-		CustomButtonId buttonId = new CustomButtonId.Builder()
-			.setType(ButtonType.SHOW_SERVER_STATS_JOIN_GRAPH)
-			.setAnyOwner()
-			.build();
 
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor("Server Stats", null, event.getGuild().getIconUrl())
@@ -132,9 +133,24 @@ public class ServerStatsCommand extends Sx4Command {
 			}
 		}
 
+		CustomButtonId buttonId = new CustomButtonId.Builder()
+			.setType(ButtonType.SHOW_SERVER_STATS_JOIN_GRAPH)
+			.setAnyOwner()
+			.build();
+
 		Button button = buttonId.asButton(ButtonStyle.SECONDARY, "View Joins Graph").withEmoji(Emoji.fromUnicode("\uD83D\uDCC8"));
 
-		event.reply(embed.build()).setActionRow(button).queue();
+		event.getHttpClient().newCall(request.build(null)).enqueue((HttpCallback) response -> {
+			if (!response.isSuccessful()) {
+				ImageUtility.sendErrorMessage(event.getChannel(), response.code(), response.body().string()).queue();
+				return;
+			}
+
+			byte[] image = response.body().bytes();
+			embed.setImage("attachment://graph.png");
+
+			event.reply(embed.build()).addFiles(FileUpload.fromData(image, "graph.png")).setActionRow(button).queue();
+		});
 	}
 
 }

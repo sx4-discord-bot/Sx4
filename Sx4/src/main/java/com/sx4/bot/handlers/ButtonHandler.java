@@ -38,6 +38,7 @@ import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 import net.dv8tion.jda.api.interactions.modals.Modal;
 import net.dv8tion.jda.api.requests.RestAction;
 import net.dv8tion.jda.api.requests.restaction.interactions.ReplyCallbackAction;
+import net.dv8tion.jda.api.utils.FileUpload;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import net.dv8tion.jda.api.utils.messages.MessageEditData;
@@ -47,8 +48,6 @@ import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.jetbrains.annotations.NotNull;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -707,13 +706,16 @@ public class ButtonHandler implements EventListener {
 
 		boolean joins = buttonId.getType() == ButtonType.SHOW_SERVER_STATS_JOIN_GRAPH.getId();
 
-		String query = data.stream().map(d -> {
-			String time = ServerStatsCommand.GRAPH_FORMATTER.format(d.getDate("time").toInstant().atOffset(ZoneOffset.UTC));
-			return URLEncoder.encode(time, StandardCharsets.UTF_8) + "=" + d.getInteger(joins ? "joins" : "messages", 0);
-		}).collect(Collectors.joining("&"));
+		ImageRequest request = new ImageRequest(this.bot.getConfig().getImageWebserverUrl("line-graph"))
+			.addQuery("x_header", "Time")
+			.addQuery("y_header", joins ? "Members Joined" : "Messages Sent");
 
-		EmbedBuilder builder = new EmbedBuilder(event.getMessage().getEmbeds().get(0))
-			.setImage(this.bot.getConfig().getImageWebserverUrl("line-graph") + "?x_header=Time&y_header=" + (joins ? "Members%20Joined" : "Messages%20Sent") + "&" + query);
+		data.forEach(d -> {
+			String time = ServerStatsCommand.GRAPH_FORMATTER.format(d.getDate("time").toInstant().atOffset(ZoneOffset.UTC));
+			request.addField(time, d.getInteger(joins ? "joins" : "messages", 0));
+		});
+
+		EmbedBuilder builder = new EmbedBuilder(event.getMessage().getEmbeds().get(0));
 
 		CustomButtonId newButtonId = new CustomButtonId.Builder()
 			.setType(joins ? ButtonType.SHOW_SERVER_STATS_MESSAGES_GRAPH : ButtonType.SHOW_SERVER_STATS_JOIN_GRAPH)
@@ -721,7 +723,17 @@ public class ButtonHandler implements EventListener {
 
 		Button button = newButtonId.asButton(ButtonStyle.SECONDARY, "View " + (joins ? "Messages" : "Joins") + " Graph").withEmoji(Emoji.fromUnicode("\uD83D\uDCC8"));
 
-		event.editMessageEmbeds(builder.build()).setActionRow(button).queue();
+		this.bot.getHttpClient().newCall(request.build(null)).enqueue((HttpCallback) response -> {
+			if (!response.isSuccessful()) {
+				event.reply(ImageUtility.getErrorMessage(response.code(), response.body().string(), null).build()).setEphemeral(true).queue();
+				return;
+			}
+
+			byte[] image = response.body().bytes();
+			builder.setImage("attachment://graph.png");
+
+			event.editMessageEmbeds(builder.build()).setFiles(FileUpload.fromData(image, "graph.png")).setActionRow(button).queue();
+		});
 	}
 
 	@Override
