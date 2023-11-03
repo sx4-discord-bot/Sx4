@@ -164,7 +164,7 @@ public abstract class Formatter<Type> {
 			while (Formatter.isEscaped(name, endBracketIndex = name.lastIndexOf(')', endBracketIndex - 1)) && endBracketIndex != -1);
 
 			periodIndex = nextPeriodIndex;
-			if (endBracketIndex <= bracketIndex) {
+			if (endBracketIndex <= bracketIndex || bracketIndex == -1) {
 				FormatterVariable<?> variable = manager.getVariable(type, name);
 				if (variable == null) {
 					FormatterFunction<?> function = manager.getFunction(type, "get");
