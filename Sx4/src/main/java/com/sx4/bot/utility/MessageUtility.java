@@ -660,7 +660,7 @@ public class MessageUtility {
 							MessageUtility.removeComponentFields(actionRowComponents);
 						}
 					} else if (type == 2) {
-						MessageUtility.keepFields(component, Set.of("type", "label", "url", "custom_id", "style"));
+						MessageUtility.keepFields(component, Set.of("type", "label", "url", "custom_id", "style", "disabled"));
 					}
 				}
 			}
