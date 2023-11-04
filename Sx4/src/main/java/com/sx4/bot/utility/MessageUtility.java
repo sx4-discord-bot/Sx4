@@ -390,10 +390,15 @@ public class MessageUtility {
 			}
 
 			String idOrUrl;
+			boolean disabled;
 			if (buttonStyle == ButtonStyle.LINK) {
 				Object urlJson = component.get("url");
 				if (!(urlJson instanceof String url)) {
 					throw new IllegalArgumentException("`" + field + "." + i + ".url` value has to be a string");
+				}
+
+				if (url.length() > Button.URL_MAX_LENGTH) {
+					throw new IllegalArgumentException("`" + field + "." + i + ".url` can only be " + Button.URL_MAX_LENGTH + " characters long");
 				}
 
 				if (checkUrl && !EmbedBuilder.URL_PATTERN.matcher(url).matches()) {
@@ -401,6 +406,7 @@ public class MessageUtility {
 				}
 
 				idOrUrl = url;
+				disabled = false;
 			} else {
 				Object idJson = component.get("custom_id");
 				if (!(idJson instanceof String id)) {
@@ -412,9 +418,16 @@ public class MessageUtility {
 				}
 
 				idOrUrl = ButtonType.TRIGGER_BUTTON_CLICKED.getId() + ":" + id;
+
+				Object disabledJson = component.get("disabled");
+				if (!(disabledJson instanceof Boolean)) {
+					throw new IllegalArgumentException("`" + field + "." + i + ".disabled` value has to be a boolean");
+				}
+
+				disabled = (boolean) disabledJson;
 			}
 
-			Button button = Button.of(buttonStyle, idOrUrl, label);
+			Button button = Button.of(buttonStyle, idOrUrl, label).withDisabled(disabled);
 			componentList.add(button);
 		}
 
