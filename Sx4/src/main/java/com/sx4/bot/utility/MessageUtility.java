@@ -420,11 +420,11 @@ public class MessageUtility {
 				idOrUrl = ButtonType.TRIGGER_BUTTON_CLICKED.getId() + ":" + id;
 
 				Object disabledJson = component.get("disabled");
-				if (!(disabledJson instanceof Boolean)) {
+				if (disabledJson != null && !(disabledJson instanceof Boolean)) {
 					throw new IllegalArgumentException("`" + field + "." + i + ".disabled` value has to be a boolean");
 				}
 
-				disabled = (boolean) disabledJson;
+				disabled = disabledJson != null && (boolean) disabledJson;
 			}
 
 			Button button = Button.of(buttonStyle, idOrUrl, label).withDisabled(disabled);
