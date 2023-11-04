@@ -39,7 +39,7 @@ public class JsonFormatter extends Formatter<Document> {
 
 				document.append(key, list);
 			} else if (value instanceof String) {
-				document.append(key, Formatter.format((String) value, this.manager));
+				document.append(key, Formatter.toObject((String) value, Object.class, this.manager));
 			} else {
 				document.append(key, value);
 			}

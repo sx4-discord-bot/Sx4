@@ -13,6 +13,10 @@ public class GetObjectFunction extends FormatterFunction<Document> {
 	}
 
 	public Object parse(FormatterEvent<Document> event, String key, Optional<Object> defaultValue) {
+		if (event.getObject() == null) {
+			return null;
+		}
+
 		Object object = event.getObject().get(key);
 		if (object == null) {
 			return defaultValue.orElse(null);
