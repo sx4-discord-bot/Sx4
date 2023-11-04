@@ -31,7 +31,7 @@ public class JsonFormatter extends Formatter<Document> {
 					if (element instanceof Document) {
 						list.add(this.parse((Document) element));
 					} else if (element instanceof String) {
-						list.add(Formatter.format((String) element, this.manager));
+						list.add(Formatter.toObject((String) element, Object.class, this.manager));
 					} else {
 						list.add(element);
 					}
