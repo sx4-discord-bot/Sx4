@@ -3,7 +3,7 @@ package com.sx4.bot.entities.trigger;
 public enum TriggerEventType {
 
 	MESSAGE_MATCHED(0),
-	BUTTON_CLICKED(1);
+	COMPONENT_CLICKED(1);
 
 	private final int id;
 

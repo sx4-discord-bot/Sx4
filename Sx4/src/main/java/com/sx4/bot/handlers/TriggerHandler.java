@@ -25,11 +25,12 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.GenericEvent;
-import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.GenericComponentInteractionCreateEvent;
+import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
 import net.dv8tion.jda.api.hooks.EventListener;
-import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.ActionComponent;
 import okhttp3.OkHttpClient;
 import org.bson.Document;
 import org.bson.conversions.Bson;
@@ -201,9 +202,9 @@ public class TriggerHandler implements EventListener {
 		});
 	}
 
-	public void handleButton(ButtonInteractionEvent event) {
-		Button button = event.getButton();
-		if (!event.isFromGuild() || button.isDisabled()) {
+	public void handleComponent(GenericComponentInteractionCreateEvent event) {
+		ActionComponent component = event.getComponent();
+		if (!event.isFromGuild() || component.isDisabled()) {
 			return;
 		}
 
@@ -212,7 +213,7 @@ public class TriggerHandler implements EventListener {
 		MessageChannel channel = event.getChannel();
 
 		List<Bson> pipeline = List.of(
-			Aggregates.match(Filters.and(Filters.eq("type", TriggerEventType.BUTTON_CLICKED.getId()), Filters.eq("guildId", guild.getIdLong()))),
+			Aggregates.match(Filters.and(Filters.eq("type", TriggerEventType.COMPONENT_CLICKED), Filters.eq("guildId", guild.getIdLong()))),
 			Aggregates.group(null, Accumulators.push("triggers", Operators.ROOT))
 		);
 
@@ -244,6 +245,10 @@ public class TriggerHandler implements EventListener {
 						.addVariable("server", guild)
 						.addVariable("now", OffsetDateTime.now())
 						.addVariable("random", new Random());
+
+					if (event instanceof StringSelectInteractionEvent) {
+						manager.addVariable("values", ((StringSelectInteractionEvent) event).getValues());
+					}
 				} else {
 					manager = new FormatterManager();
 				}
@@ -252,7 +257,7 @@ public class TriggerHandler implements EventListener {
 
 				List<Object> arguments;
 				try {
-					arguments = formatter.parse(context, button.getId(), trigger.get("case", false));
+					arguments = formatter.parse(context, component.getId(), trigger.get("case", false));
 				} catch (IllegalArgumentException e) {
 					channel.sendMessage(e.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
 					return;
@@ -294,8 +299,8 @@ public class TriggerHandler implements EventListener {
 			this.handle(((MessageReceivedEvent) event).getMessage());
 		} else if (event instanceof MessageUpdateEvent) {
 			this.handle(((MessageUpdateEvent) event).getMessage());
-		} else if (event instanceof ButtonInteractionEvent) {
-			this.handleButton((ButtonInteractionEvent) event);
+		} else if (event instanceof GenericComponentInteractionCreateEvent) {
+			this.handleComponent((GenericComponentInteractionCreateEvent) event);
 		}
 	}
 

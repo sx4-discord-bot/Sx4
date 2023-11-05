@@ -10,8 +10,8 @@ public enum TriggerActionType {
 	ADD_REACTION(2, 1),
 	EXECUTE_COMMAND(3, 2),
 	SEND_PAGED_MESSAGE(4, 2),
-	REPLY_MESSAGE(5, 2, TriggerEventType.BUTTON_CLICKED),
-	EDIT_MESSAGE(6, 2, TriggerEventType.BUTTON_CLICKED);
+	REPLY_MESSAGE(5, 2, TriggerEventType.COMPONENT_CLICKED),
+	EDIT_MESSAGE(6, 2, TriggerEventType.COMPONENT_CLICKED);
 
 	public static final int MAX_ACTIONS = 6;
 
