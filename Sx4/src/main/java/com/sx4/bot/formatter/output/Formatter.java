@@ -118,6 +118,10 @@ public abstract class Formatter<Type> {
 			}
 
 			FormatterArgument formatterArgument = arguments[index];
+			if (formatterArgument.isExcludeFormatting()) {
+				functionArguments.add(argument);
+				continue;
+			}
 
 			Object argumentValue = Formatter.toObject(argument, formatterArgument.isUsePrevious() ? type : formatterArgument.getType(), manager);
 			if (argumentValue == null && !formatterArgument.isAcceptNull()) {

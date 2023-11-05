@@ -1,6 +1,7 @@
 package com.sx4.bot.formatter.output.parser;
 
 import com.sx4.bot.formatter.output.Formatter;
+import com.sx4.bot.formatter.output.annotation.ExcludeFormatting;
 import com.sx4.bot.formatter.output.function.FormatterEvent;
 import com.sx4.bot.formatter.output.function.FormatterFunction;
 
@@ -14,7 +15,7 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 		super(Collection.class, "filter", "Filters a list by a condition");
 	}
 
-	public List<?> parse(FormatterEvent<Collection<?>> event, String lambda) {
+	public List<?> parse(FormatterEvent<Collection<?>> event, @ExcludeFormatting String lambda) {
 		Collection<?> collection = event.getObject();
 
 		List<Object> newList = new ArrayList<>();

@@ -1,6 +1,7 @@
 package com.sx4.bot.formatter.output.function;
 
 import com.sx4.bot.formatter.output.annotation.AcceptNull;
+import com.sx4.bot.formatter.output.annotation.ExcludeFormatting;
 import com.sx4.bot.formatter.output.annotation.UsePrevious;
 import com.sx4.bot.utility.ClassUtility;
 
@@ -14,11 +15,9 @@ public class FormatterArgument {
 	private final boolean optional;
 	private final boolean usePrevious;
 	private final boolean acceptNull;
+	private final boolean excludeFormatting;
 
 	public FormatterArgument(Parameter parameter) {
-		boolean usePrevious = parameter.isAnnotationPresent(UsePrevious.class);
-		boolean acceptNull = parameter.isAnnotationPresent(AcceptNull.class);
-
 		Class<?> type = parameter.getType();
 		boolean optional = type == Optional.class;
 		if (optional) {
@@ -27,8 +26,9 @@ public class FormatterArgument {
 
 		this.type = type;
 		this.optional = optional;
-		this.usePrevious = usePrevious;
-		this.acceptNull = acceptNull;
+		this.usePrevious = parameter.isAnnotationPresent(UsePrevious.class);
+		this.acceptNull = parameter.isAnnotationPresent(AcceptNull.class);
+		this.excludeFormatting = parameter.isAnnotationPresent(ExcludeFormatting.class);
 	}
 
 	public Class<?> getType() {
@@ -45,6 +45,10 @@ public class FormatterArgument {
 
 	public boolean isAcceptNull() {
 		return this.acceptNull;
+	}
+
+	public boolean isExcludeFormatting() {
+		return this.excludeFormatting;
 	}
 
 }
