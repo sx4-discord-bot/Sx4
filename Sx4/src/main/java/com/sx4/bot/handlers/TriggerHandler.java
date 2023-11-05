@@ -248,7 +248,7 @@ public class TriggerHandler implements EventListener {
 					manager = new FormatterManager();
 				}
 
-				InputFormatter formatter = new InputFormatter(ButtonType.TRIGGER_BUTTON_CLICKED.getId() + ":" + trigger.getString("trigger"));
+				InputFormatter formatter = new InputFormatter(ButtonType.TRIGGER_COMPONENT_CLICKED.getId() + ":" + trigger.getString("trigger"));
 
 				List<Object> arguments;
 				try {

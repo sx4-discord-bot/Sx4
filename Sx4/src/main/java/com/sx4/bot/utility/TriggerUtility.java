@@ -345,8 +345,10 @@ public class TriggerUtility {
 			}
 
 			MessageUtility.removeFields((Document) response);
-			if (!MessageUtility.isValid((Document) response, false)) {
-				throw new IllegalArgumentException("`response` field was not valid message json");
+			try {
+				MessageUtility.fromCreateJson((Document) response, false);
+			} catch (IllegalArgumentException e) {
+				throw new IllegalArgumentException("`response` field was not valid message json\n" + e.getMessage());
 			}
 
 			Object channelId = data.get("channelId");
@@ -467,8 +469,10 @@ public class TriggerUtility {
 					action.append("display", display);
 				} else if (display instanceof Document message) {
 					MessageUtility.removeFields(message);
-					if (!MessageUtility.isValid(message, false)) {
-						throw new IllegalArgumentException("`display` field was not valid message json");
+					try {
+						MessageUtility.fromCreateJson((Document) display, false);
+					} catch (IllegalArgumentException e) {
+						throw new IllegalArgumentException("`display` field was not valid message json\n" + e.getMessage());
 					}
 
 					action.append("display", message);
@@ -536,8 +540,10 @@ public class TriggerUtility {
 			}
 
 			MessageUtility.removeFields((Document) response);
-			if (!MessageUtility.isValid((Document) response, false)) {
-				throw new IllegalArgumentException("`response` field was not valid message json");
+			try {
+				MessageUtility.fromCreateJson((Document) response, false);
+			} catch (IllegalArgumentException e) {
+				throw new IllegalArgumentException("`response` field was not valid message json\n" + e.getMessage());
 			}
 
 			action.append("response", response);
@@ -548,8 +554,10 @@ public class TriggerUtility {
 			}
 
 			MessageUtility.removeFields((Document) editData);
-			if (!MessageUtility.isValid((Document) editData, false)) {
-				throw new IllegalArgumentException("`data` field was not valid message json");
+			try {
+				MessageUtility.fromEditJson((Document) editData, false);
+			} catch (IllegalArgumentException e) {
+				throw new IllegalArgumentException("`data` field was not valid message json\n" + e.getMessage());
 			}
 
 			action.append("data", editData);

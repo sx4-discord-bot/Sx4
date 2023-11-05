@@ -10,25 +10,34 @@ public class FormatterResponse {
 
 	private final int status;
 
-	private final String body;
+	private final byte[] bytes;
 	private Document json;
 	private List<Object> array;
+	private String body;
 
 	public FormatterResponse(Response response) throws IOException {
 		this.status = response.code();
-		this.body = response.peekBody(10_000_000).string();
+		this.bytes = response.peekBody(10_000_000).bytes();
 	}
 
 	public int getStatus() {
 		return this.status;
 	}
 
-	public String getRaw() {
+	public byte[] getRaw() {
+		return this.bytes;
+	}
+
+	public synchronized String asBody() {
+		if (this.body == null) {
+			return this.body = new String(this.bytes);
+		}
+
 		return this.body;
 	}
 
 	public synchronized List<Object> asArray() {
-		String body = "{\"a\":" + this.body + "}";
+		String body = "{\"a\":" + this.asBody() + "}";
 		if (this.array == null) {
 			return this.array = Document.parse(body).getList("a", Object.class);
 		}
@@ -38,7 +47,7 @@ public class FormatterResponse {
 
 	public synchronized Document asJson() {
 		if (this.json == null) {
-			return this.json = Document.parse(this.body);
+			return this.json = Document.parse(this.asBody());
 		}
 
 		return this.json;

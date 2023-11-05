@@ -263,11 +263,19 @@ public abstract class Formatter<Type> {
 	}
 
 	public static Object toObject(String text, Class<?> type, FormatterManager manager) {
+		return Formatter.toObject(text, type, manager, true);
+	}
+
+	public static Object toObject(String text, Class<?> type, FormatterManager manager, boolean useParser) {
 		if (text.length() > 0 && text.charAt(0) == '{' && text.charAt(text.length() - 1) == '}' && text.charAt(text.length() - 2) != '\\') {
 			Object value = Formatter.getValue(text.substring(1, text.length() - 1), manager);
 			if (value != null && type.isAssignableFrom(value.getClass())) {
 				return value;
 			}
+		}
+
+		if (!useParser) {
+			return text;
 		}
 
 		FormatterParser<?> parser = manager.getParser(type);
