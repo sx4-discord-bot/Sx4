@@ -342,6 +342,7 @@ public class Sx4 {
 			.addVariable("array", "Gets the response body as a json array", FormatterResponse.class, Collection.class, FormatterResponse::asArray)
 			.addVariable("bytes", "Gets the response body as a byte array", FormatterResponse.class, byte[].class, FormatterResponse::getRaw)
 			.addVariable("keys", "Gets the key values of the json as a list", Document.class, Collection.class, Document::keySet)
+			.addVariable("raw", "Gets the json object as a raw string", Document.class, String.class, Document::toJson)
 			.addVariable("icon", "Get the icon url of the free game platform", FreeGameType.class, String.class, FreeGameType::getIconUrl)
 			.addVariable("name", "Get the name of the free game platform", FreeGameType.class, String.class, FreeGameType::getName)
 			.addVariable("platform", "Get the platform of the free game", FreeGame.class, FreeGameType.class, FreeGame::getType)
