@@ -275,7 +275,7 @@ public abstract class Formatter<Type> {
 		}
 
 		if (!useParser) {
-			return text;
+			return Formatter.format(text, manager);
 		}
 
 		FormatterParser<?> parser = manager.getParser(type);

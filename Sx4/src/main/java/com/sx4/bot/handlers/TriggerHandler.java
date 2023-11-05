@@ -213,7 +213,7 @@ public class TriggerHandler implements EventListener {
 		MessageChannel channel = event.getChannel();
 
 		List<Bson> pipeline = List.of(
-			Aggregates.match(Filters.and(Filters.eq("type", TriggerEventType.COMPONENT_CLICKED), Filters.eq("guildId", guild.getIdLong()))),
+			Aggregates.match(Filters.and(Filters.eq("type", TriggerEventType.COMPONENT_CLICKED.getId()), Filters.eq("guildId", guild.getIdLong()))),
 			Aggregates.group(null, Accumulators.push("triggers", Operators.ROOT))
 		);
 
