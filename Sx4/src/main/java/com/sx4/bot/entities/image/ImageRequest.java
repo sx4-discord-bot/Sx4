@@ -41,7 +41,23 @@ public class ImageRequest {
 	}
 
 	public ImageRequest addField(String key, Object value) {
-		this.fields.append(key, value);
+		String[] fields = key.split("\\.");
+
+		Document json = this.fields;
+		for (int i = 0; i < fields.length; i++) {
+			String field = fields[i];
+			if (i == fields.length - 1) {
+				json.append(field, value);
+				break;
+			}
+
+			Object oldValue = json.get(field);
+			if (oldValue instanceof Document) {
+				json = (Document) oldValue;
+			} else {
+				json.append(field, json = new Document());
+			}
+		}
 
 		return this;
 	}

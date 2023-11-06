@@ -114,7 +114,7 @@ public class ServerStatsCommand extends Sx4Command {
 			}
 
 			String timeReadable = ServerStatsCommand.GRAPH_FORMATTER.format(time.toInstant().atOffset(ZoneOffset.UTC));
-			request.addField(timeReadable, messages);
+			request.addField("data." + timeReadable, messages);
 
 			lastUpdate = lastUpdate == null || lastUpdate.getTime() < time.getTime() ? time : lastUpdate;
 		}
