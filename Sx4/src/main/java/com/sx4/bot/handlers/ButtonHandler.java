@@ -712,7 +712,7 @@ public class ButtonHandler implements EventListener {
 
 		data.forEach(d -> {
 			String time = ServerStatsCommand.GRAPH_FORMATTER.format(d.getDate("time").toInstant().atOffset(ZoneOffset.UTC));
-			request.addField(time, d.getInteger(joins ? "joins" : "messages", 0));
+			request.addField("data." + time, d.getInteger(joins ? "joins" : "messages", 0));
 		});
 
 		EmbedBuilder builder = new EmbedBuilder(event.getMessage().getEmbeds().get(0));
