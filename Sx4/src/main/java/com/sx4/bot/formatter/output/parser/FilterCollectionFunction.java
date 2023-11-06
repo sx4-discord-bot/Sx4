@@ -8,6 +8,7 @@ import com.sx4.bot.formatter.output.function.FormatterFunction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public class FilterCollectionFunction extends FormatterFunction<Collection> {
 
@@ -15,12 +16,13 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 		super(Collection.class, "filter", "Filters a list by a condition");
 	}
 
-	public List<?> parse(FormatterEvent<Collection<?>> event, @ExcludeFormatting String lambda) {
+	public List<?> parse(FormatterEvent<Collection<?>> event, @ExcludeFormatting String lambda, Optional<String> variableName) {
 		Collection<?> collection = event.getObject();
+		String variable = variableName.orElse("this");
 
 		List<Object> newList = new ArrayList<>();
 		for (Object element : collection) {
-			event.getManager().addVariable("this", element);
+			event.getManager().addVariable(variable, element);
 
 			Object condition = Formatter.toObject(lambda, Boolean.class, event.getManager());
 			if (condition == null) {
@@ -32,7 +34,7 @@ public class FilterCollectionFunction extends FormatterFunction<Collection> {
 			}
 		}
 
-		event.getManager().removeVariable("this");
+		event.getManager().removeVariable(variable);
 
 		return newList;
 	}
