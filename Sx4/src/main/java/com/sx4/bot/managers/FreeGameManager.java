@@ -154,7 +154,7 @@ public class FreeGameManager implements WebhookManager {
 				.thenCompose(result -> this.sendFreeGameNotificationMessages(channel, webhookData, messages, premium));
 		}).exceptionallyCompose(exception -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-			if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 404) {
+			if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 10015) {
 				this.webhooks.remove(channel.getIdLong());
 
 				return this.createWebhook(channel, webhookData, messages, premium);
@@ -192,7 +192,7 @@ public class FreeGameManager implements WebhookManager {
 
 		return future.thenApply($ -> completedMessages).exceptionallyCompose(exception -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-			if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 404) {
+			if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 10015) {
 				this.webhooks.remove(channel.getIdLong());
 
 				return this.createWebhook(channel, webhookData, messages, premium);

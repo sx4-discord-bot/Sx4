@@ -79,7 +79,7 @@ public class WelcomerManager implements WebhookManager {
 				.thenApply(webhookMessage -> new SentWebhookMessage(webhookMessage, webhook.getIdLong(), webhook.getToken()));
 		}).exceptionallyCompose(exception -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-			if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 404) {
+			if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 10015) {
 				this.webhooks.remove(channel.getIdLong());
 
 				return this.createWebhook(channel, webhookData, message, premium);
@@ -109,7 +109,7 @@ public class WelcomerManager implements WebhookManager {
 			.thenApply(WebhookMessage -> new SentWebhookMessage(WebhookMessage, webhook.getIdLong(), webhook.getToken()))
 			.exceptionallyCompose(exception -> {
 				Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
-				if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 404) {
+				if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 10015) {
 					this.webhooks.remove(channel.getIdLong());
 
 					return this.createWebhook(channel, webhookData, message, premium);
