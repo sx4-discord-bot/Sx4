@@ -201,21 +201,22 @@ public class TriggerUtility {
 
 		MessagePagedResult<?> paged = builder.build();
 
-		paged.execute(messageChannel, owner);
-
+		CompletableFuture<Void> future;
 		if (select) {
-			CompletableFuture<Void> future = new CompletableFuture<>();
+			future = new CompletableFuture<>();
 			paged.onSelect(selected -> {
 				manager.addVariable("selected", selected.getSelected());
 				future.complete(null);
 			});
 
 			paged.onTimeout(() -> future.complete(null));
-
-			return future;
+		} else {
+			future = CompletableFuture.completedFuture(null);
 		}
 
-		return CompletableFuture.completedFuture(null);
+		paged.execute(messageChannel, owner);
+
+		return future;
 	}
 
 	public static CompletableFuture<Void> addReaction(FormatterManager manager, Document oldAction, Message message) {
