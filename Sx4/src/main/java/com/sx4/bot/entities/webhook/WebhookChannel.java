@@ -18,6 +18,7 @@ import net.dv8tion.jda.internal.requests.restaction.WebhookActionImpl;
 import net.dv8tion.jda.internal.utils.Checks;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.EnumSet;
 import java.util.concurrent.CompletableFuture;
 
 public class WebhookChannel implements IWebhookContainerMixin<WebhookChannel> {
@@ -33,6 +34,8 @@ public class WebhookChannel implements IWebhookContainerMixin<WebhookChannel> {
 	}
 
 	public CompletableFuture<Message> sendWebhookMessage(WebhookMessageCreateAction<Message> action) {
+		action = action.setAllowedMentions(EnumSet.allOf(Message.MentionType.class));
+
 		return this.modifyWebhookRequest(action);
 	}
 
