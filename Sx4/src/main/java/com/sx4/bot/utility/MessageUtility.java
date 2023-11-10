@@ -644,22 +644,26 @@ public class MessageUtility {
 				throw new IllegalArgumentException("`file` value has to be a json object");
 			}
 
-			Object nameJson = file.get("name");
-			if (!(nameJson instanceof String name)) {
-				throw new IllegalArgumentException("`file.name` value has to be a string");
-			}
-
-			Object dataJson = file.get("data");
-			byte[] data;
-			if (dataJson instanceof String dataString) {
-				data = dataString.getBytes(StandardCharsets.UTF_8);
-			} else if (dataJson instanceof byte[] bytes) {
-				data = bytes;
+			if (file.isEmpty()) {
+				builder.setFiles();
 			} else {
-				throw new IllegalArgumentException("`file.data` value has to be of types bytes or string");
-			}
+				Object nameJson = file.get("name");
+				if (!(nameJson instanceof String name)) {
+					throw new IllegalArgumentException("`file.name` value has to be a string");
+				}
 
-			builder.setFiles(FileUpload.fromData(data, name));
+				Object dataJson = file.get("data");
+				byte[] data;
+				if (dataJson instanceof String dataString) {
+					data = dataString.getBytes(StandardCharsets.UTF_8);
+				} else if (dataJson instanceof byte[] bytes) {
+					data = bytes;
+				} else {
+					throw new IllegalArgumentException("`file.data` value has to be of types bytes or string");
+				}
+
+				builder.setFiles(FileUpload.fromData(data, name));
+			}
 		}
 
 		if (builder.isEmpty()) {
