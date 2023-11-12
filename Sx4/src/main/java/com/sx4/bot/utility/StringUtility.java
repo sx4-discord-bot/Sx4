@@ -49,6 +49,10 @@ public class StringUtility {
 	}
 
 	public static boolean isNotEqual(String string, char firstChar, char secondChar) {
+		return StringUtility.isNotEqual(string, firstChar, secondChar, false);
+	}
+
+	public static boolean isNotEqual(String string, char firstChar, char secondChar, boolean ordered) {
 		int first = 0, second = 0;
 		for (int i = 0; i < string.length(); i++) {
 			char character = string.charAt(i), characterBefore = string.charAt(Math.max(0, i - 1));
@@ -56,6 +60,10 @@ public class StringUtility {
 				first++;
 			} else if (character == secondChar && characterBefore != '\\') {
 				second++;
+			}
+
+			if (ordered && second > first) {
+				return true;
 			}
 		}
 
