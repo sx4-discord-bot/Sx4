@@ -44,7 +44,7 @@ public class EditMessageTriggerAction extends TriggerAction {
 			builder.setEmbeds(newEmbeds);
 		}
 
-		return this.event.editMessage(builder.build()).submit().thenApply($ -> null);
+		return (this.event.isAcknowledged() ? this.event.getHook().editOriginal(builder.build()) : this.event.editMessage(builder.build())).submit().thenApply($ -> null);
 	}
 
 }

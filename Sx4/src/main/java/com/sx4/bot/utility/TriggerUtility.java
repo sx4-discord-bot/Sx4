@@ -69,6 +69,7 @@ public class TriggerUtility {
 				case SEND_PAGED_MESSAGE -> new SendPagedMessageTriggerAction(bot, manager, actionData, channel, message.getAuthor());
 				case REPLY_MESSAGE -> new ReplyMessageTriggerAction(manager, actionData, event);
 				case EDIT_MESSAGE -> new EditMessageTriggerAction(manager, actionData, event);
+				case DEFER_MESSAGE -> new DeferMessageTriggerAction(manager, actionData, event);
 			};
 
 			if (actionData.containsKey("order")) {
@@ -580,8 +581,7 @@ public class TriggerUtility {
 			if (combineEmbeds != null) {
 				action.append("combineEmbeds", combineEmbeds);
 			}
-
-		} else {
+		} else if (type != TriggerActionType.DEFER_MESSAGE) {
 			throw new IllegalArgumentException("That action type is not supported yet");
 		}
 
