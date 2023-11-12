@@ -9,12 +9,16 @@ import java.nio.charset.StandardCharsets;
 public class RequestUtility {
 
 	public static String getWorkerUrl(String url) {
+		Config config = Config.get();
+
 		URI uri = URI.create(url);
-		if (uri.getHost().endsWith("discordapp.com") || uri.getHost().endsWith("discordapp.net")) {
-			return url;
+		for (String domain : config.getCloudflareWhitelistedDomains()) {
+			if (uri.getHost().endsWith(domain)) {
+				return url;
+			}
 		}
 
-		return Config.get().getCloudflareWorkerUrl() + "?url=" + URLEncoder.encode(url, StandardCharsets.UTF_8);
+		return config.getCloudflareWorkerUrl() + "?url=" + URLEncoder.encode(url, StandardCharsets.UTF_8);
 	}
 
 }

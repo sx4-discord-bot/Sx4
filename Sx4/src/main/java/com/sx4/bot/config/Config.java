@@ -1,7 +1,8 @@
 package com.sx4.bot.config;
 
-import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.entities.*;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.sharding.ShardManager;
 import org.bson.Document;
@@ -311,6 +312,10 @@ public class Config extends GenericConfig {
 
 	public String getSearchWebserverUrl(String endpoint) {
 		return this.getSearchWebserverBaseUrl() + this.getSearchWebserverPath() + endpoint;
+	}
+
+	public List<String> getCloudflareWhitelistedDomains() {
+		return this.get("webserver.worker.whitelist");
 	}
 
 	public String getCloudflareWorkerDomain() {
