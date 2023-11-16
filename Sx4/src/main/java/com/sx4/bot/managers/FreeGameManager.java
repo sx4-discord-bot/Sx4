@@ -146,12 +146,12 @@ public class FreeGameManager implements WebhookManager {
 				Updates.set("webhook.token", webhook.getToken())
 			);
 
-			webhookData.append("id", webhook.getIdLong()).append("token", webhook.getToken());
+			Document webhookDataCopy = new Document(webhookData).append("id", webhook.getIdLong()).append("token", webhook.getToken());
 
 			long webhookChannelId = channel.getWebhookChannel().getIdLong();
 
 			return this.bot.getMongo().updateManyFreeGameChannels(Filters.or(Filters.eq("channelId", webhookChannelId), Filters.eq("webhook.channelId", webhookChannelId)), update, new UpdateOptions())
-				.thenCompose(result -> this.sendFreeGameNotificationMessages(channel, webhookData, messages, premium));
+				.thenCompose(result -> this.sendFreeGameNotificationMessages(channel, webhookDataCopy, messages, premium));
 		}).exceptionallyCompose(exception -> {
 			Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
 			if (cause instanceof ErrorResponseException && ((ErrorResponseException) cause).getErrorCode() == 10015) {
