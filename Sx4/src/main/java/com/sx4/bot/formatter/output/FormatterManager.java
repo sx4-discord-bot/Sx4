@@ -212,6 +212,10 @@ public class FormatterManager {
 		Set<Class<?>> types = new HashSet<>();
 		types.add(type);
 
+		if (type == Void.class) {
+			return types;
+		}
+
 		for (Class<?> inheritanceType : this.handleInheritance) {
 			if (inheritanceType.isAssignableFrom(type)) {
 				types.add(inheritanceType);
