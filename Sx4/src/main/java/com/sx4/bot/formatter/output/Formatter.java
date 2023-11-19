@@ -97,6 +97,10 @@ public abstract class Formatter<Type> {
 	}
 
 	private static List<Object> getFunctionArguments(FormatterFunction<?> function, String text, Object value, Class<?> type, FormatterManager manager) {
+		if (value == null) {
+			return null;
+		}
+
 		List<Object> functionArguments = new ArrayList<>();
 		functionArguments.add(new FormatterEvent<>(value, manager));
 

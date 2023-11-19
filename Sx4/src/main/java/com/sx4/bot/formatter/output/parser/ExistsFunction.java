@@ -10,7 +10,7 @@ public class ExistsFunction extends FormatterFunction<Object> {
 		super(Object.class, "exists", "Returns true if a variable exists on the current object otherwise false");
 	}
 
-	public boolean parse(FormatterEvent<Object> event, String variableName) {
+	public Boolean parse(FormatterEvent<Object> event, String variableName) {
 		Object object = event.getObject();
 
 		FormatterVariable<?> variable = event.getManager().getVariable(object.getClass(), variableName);
