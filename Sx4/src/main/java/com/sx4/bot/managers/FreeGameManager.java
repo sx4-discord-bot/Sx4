@@ -21,6 +21,8 @@ import net.dv8tion.jda.api.entities.WebhookClient;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.unions.GuildMessageChannelUnion;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.interactions.components.Component;
+import net.dv8tion.jda.api.interactions.components.buttons.ButtonStyle;
 import net.dv8tion.jda.api.requests.restaction.WebhookMessageCreateAction;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
@@ -42,8 +44,7 @@ import java.util.stream.Collectors;
 
 public class FreeGameManager implements WebhookManager {
 
-	public static final Document DEFAULT_MESSAGE = new Document("embed",
-		new Document("title", "{game.title}")
+	public static final Document DEFAULT_MESSAGE = new Document("embed", new Document("title", "{game.title}")
 			.append("url", "{game.url}")
 			.append("description", "{game.description}")
 			.append("thumbnail", new Document("url", "{game.platform.icon}"))
@@ -53,7 +54,16 @@ public class FreeGameManager implements WebhookManager {
 				new Document("name", "Publisher").append("value", "{game.publisher}").append("inline", true),
 				new Document("name", "Promotion End").append("value", "<t:{game.promotion_end.epoch}:f>").append("inline", false)
 			))
-	);
+		).append("components", List.of(
+			new Document("type", Component.Type.ACTION_ROW.getKey())
+				.append("components", List.of(
+					new Document("type", Component.Type.BUTTON.getKey())
+						.append("label", "Open in Client")
+						.append("style", ButtonStyle.LINK.getKey())
+						.append("url", "https://sx4.dev/redirect?url={game.run_url.substring(1,-1)}")
+						.append("disabled", "{game.exists(run_url).not}")
+				))
+		));
 
 	private final Sx4 bot;
 
