@@ -97,7 +97,7 @@ public abstract class Formatter<Type> {
 	}
 
 	private static List<Object> getFunctionArguments(FormatterFunction<?> function, String text, Object value, Class<?> type, FormatterManager manager) {
-		if (value == null) {
+		if (type != Void.class && value == null) {
 			return null;
 		}
 
