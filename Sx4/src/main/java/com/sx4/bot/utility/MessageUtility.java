@@ -424,17 +424,6 @@ public class MessageUtility {
 				throw new IllegalArgumentException("`" + field + "` has too many components");
 			}
 
-			Object idJson = component.get("custom_id");
-			if (!(idJson instanceof String id)) {
-				throw new IllegalArgumentException("`" + field + "." + i + ".custom_id` value has to be a string");
-			}
-
-			if (id.length() > Button.ID_MAX_LENGTH - 3) {
-				throw new IllegalArgumentException("`" + field + "." + i + ".custom_id` can only be " + (Button.ID_MAX_LENGTH - 3) + " characters long");
-			}
-
-			id = ButtonType.TRIGGER_COMPONENT_CLICKED.getId() + ":" + id;
-
 			Object disabledJson = component.get("disabled");
 			if (disabledJson != null && !(disabledJson instanceof Boolean)) {
 				throw new IllegalArgumentException("`" + field + "." + i + ".disabled` value has to be a boolean");
@@ -463,6 +452,7 @@ public class MessageUtility {
 					throw new IllegalArgumentException("`" + field + "." + i + ".label` can only be " + Button.LABEL_MAX_LENGTH + " characters long");
 				}
 
+				String id;
 				if (buttonStyle == ButtonStyle.LINK) {
 					Object urlJson = component.get("url");
 					if (!(urlJson instanceof String url)) {
@@ -478,10 +468,32 @@ public class MessageUtility {
 					}
 
 					id = url;
+				} else {
+					Object idJson = component.get("custom_id");
+					if (!(idJson instanceof String customId)) {
+						throw new IllegalArgumentException("`" + field + "." + i + ".custom_id` value has to be a string");
+					}
+
+					if (customId.length() > Button.ID_MAX_LENGTH - 3) {
+						throw new IllegalArgumentException("`" + field + "." + i + ".custom_id` can only be " + (Button.ID_MAX_LENGTH - 3) + " characters long");
+					}
+
+					id = ButtonType.TRIGGER_COMPONENT_CLICKED.getId() + ":" + customId;
 				}
 
 				componentObject = Button.of(buttonStyle, id, label).withDisabled(disabled);
 			} else if (componentType == Component.Type.STRING_SELECT) {
+				Object idJson = component.get("custom_id");
+				if (!(idJson instanceof String id)) {
+					throw new IllegalArgumentException("`" + field + "." + i + ".custom_id` value has to be a string");
+				}
+
+				if (id.length() > Button.ID_MAX_LENGTH - 3) {
+					throw new IllegalArgumentException("`" + field + "." + i + ".custom_id` can only be " + (Button.ID_MAX_LENGTH - 3) + " characters long");
+				}
+
+				id = ButtonType.TRIGGER_COMPONENT_CLICKED.getId() + ":" + id;
+
 				Object placeholderJson = component.get("placeholder");
 				if (placeholderJson != null && !(placeholderJson instanceof String)) {
 					throw new IllegalArgumentException("`" + field + "." + i + ".placeholder` value has to be a string");
