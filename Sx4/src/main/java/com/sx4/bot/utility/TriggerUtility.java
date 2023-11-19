@@ -47,8 +47,6 @@ public class TriggerUtility {
 	}
 
 	public static List<CompletableFuture<Void>> executeActions(Document trigger, Sx4 bot, FormatterManager manager, Message message, GenericComponentInteractionCreateEvent event) {
-		GuildMessageChannel channel = message.getGuildChannel();
-
 		List<Document> actions = trigger.getList("actions", Document.class, Collections.emptyList()).stream()
 			.sorted(Comparator.comparingInt(d -> d.getInteger("order", -1)))
 			.collect(Collectors.toList());
@@ -63,10 +61,10 @@ public class TriggerUtility {
 
 			TriggerAction action = switch (type) {
 				case REQUEST -> new RequestTriggerAction(manager, actionData);
-				case SEND_MESSAGE -> new SendMessageTriggerAction(manager, actionData, channel);
+				case SEND_MESSAGE -> new SendMessageTriggerAction(manager, actionData, message.getGuildChannel());
 				case ADD_REACTION -> new AddReactionTriggerAction(manager, actionData, message);
 				case EXECUTE_COMMAND -> new ExecuteCommandTriggerAction(manager, actionData, (Sx4CommandListener) bot.getCommandListener(), message);
-				case SEND_PAGED_MESSAGE -> new SendPagedMessageTriggerAction(bot, manager, actionData, channel, message.getAuthor());
+				case SEND_PAGED_MESSAGE -> new SendPagedMessageTriggerAction(bot, manager, actionData, message.getGuildChannel(), message.getAuthor());
 				case REPLY_MESSAGE -> new ReplyMessageTriggerAction(manager, actionData, event);
 				case EDIT_MESSAGE -> new EditMessageTriggerAction(manager, actionData, event);
 				case DEFER_MESSAGE -> new DeferMessageTriggerAction(manager, actionData, event);
