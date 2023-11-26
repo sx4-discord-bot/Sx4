@@ -15,11 +15,14 @@ public enum TriggerActionType {
 	DEFER_MESSAGE(7, 1, TriggerEventType.COMPONENT_CLICKED),
 	PROXY(8, 1) {
 		public EnumSet<TriggerEventType> getAllowedEvents() {
-			EnumSet<TriggerEventType> eventTypes = EnumSet.allOf(TriggerEventType.class);
-			eventTypes.remove(TriggerEventType.PROXY_EXECUTED);
-			return eventTypes;
+			return PROXY_EVENTS;
 		}
 	};
+
+	private static final EnumSet<TriggerEventType> PROXY_EVENTS = EnumSet.allOf(TriggerEventType.class);
+	static {
+		PROXY_EVENTS.remove(TriggerEventType.PROXY_EXECUTED);
+	}
 
 	public static final int MAX_ACTIONS = 6;
 
