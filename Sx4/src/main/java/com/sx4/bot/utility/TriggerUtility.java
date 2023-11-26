@@ -583,7 +583,7 @@ public class TriggerUtility {
 		} else if (type == TriggerActionType.PROXY) {
 			Object triggerContent = data.get("trigger");
 			if (!(triggerContent instanceof String trigger)) {
-				throw new IllegalArgumentException("`data` field has to be a string");
+				throw new IllegalArgumentException("`trigger` field has to be a string");
 			}
 
 			action.append("trigger", trigger);
