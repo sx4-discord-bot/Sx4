@@ -293,6 +293,74 @@ public class TriggerHandler implements EventListener {
 		});
 	}
 
+	public void handleTriggerProxy(String triggeredContent, FormatterManager manager, Message message, GenericComponentInteractionCreateEvent event) {
+		Guild guild = message.getGuild();
+		MessageChannel channel = message.getChannel();
+
+		List<Bson> pipeline = List.of(
+			Aggregates.match(Filters.and(Filters.eq("type", TriggerEventType.PROXY_EXECUTED.getId()), Filters.eq("guildId", guild.getIdLong()))),
+			Aggregates.group(null, Accumulators.push("triggers", Operators.ROOT))
+		);
+
+		this.bot.getMongo().aggregateTriggers(pipeline).whenComplete((documents, databaseException) -> {
+			if (ExceptionUtility.sendErrorMessage(databaseException)) {
+				return;
+			}
+
+			if (documents.isEmpty()) {
+				return;
+			}
+
+			Document data = documents.get(0);
+
+			InputFormatterContext context = new InputFormatterContext(message);
+
+			List<Document> triggers = data.getList("triggers", Document.class, Collections.emptyList());
+			triggers.forEach(trigger -> {
+				if (!trigger.get("enabled", true)) {
+					return;
+				}
+
+				InputFormatter formatter = new InputFormatter(trigger.getString("trigger"));
+
+				List<Object> arguments;
+				try {
+					arguments = formatter.parse(context, triggeredContent, trigger.get("case", false));
+				} catch (IllegalArgumentException e) {
+					channel.sendMessage(e.getMessage() + " " + this.bot.getConfig().getFailureEmote()).queue();
+					return;
+				} catch (Throwable exception) {
+					ExceptionUtility.sendExceptionally(channel, exception);
+					return;
+				}
+
+				if (arguments == null) {
+					return;
+				}
+
+				for (int i = 0; i < arguments.size(); i++) {
+					manager.addVariable(String.valueOf(i), arguments.get(i));
+				}
+
+				List<Document> variables = trigger.getList("variables", Document.class, Collections.emptyList());
+				for (Document variable : variables) {
+					manager.addVariable(variable.getString("key"), variable.get("value"));
+				}
+
+				List<CompletableFuture<Void>> futures = TriggerUtility.executeActions(trigger, this.bot, manager, message, event);
+
+				FutureUtility.allOf(futures).whenComplete(($, exception) -> {
+					Throwable cause = exception instanceof CompletionException ? exception.getCause() : exception;
+					if (cause instanceof IllegalArgumentException) {
+						this.bot.getMongo().updateTrigger(Filters.eq("_id", trigger.getObjectId("_id")), Updates.set("enabled", false), new UpdateOptions()).whenComplete(MongoDatabase.exceptionally());
+					}
+
+					ExceptionUtility.sendExceptionally(channel, exception);
+				});
+			});
+		});
+	}
+
 	@Override
 	public void onEvent(@NotNull GenericEvent event) {
 		if (event instanceof MessageReceivedEvent) {

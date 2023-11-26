@@ -12,7 +12,14 @@ public enum TriggerActionType {
 	SEND_PAGED_MESSAGE(4, 2),
 	REPLY_MESSAGE(5, 2, TriggerEventType.COMPONENT_CLICKED),
 	EDIT_MESSAGE(6, 2, TriggerEventType.COMPONENT_CLICKED),
-	DEFER_MESSAGE(7, 1, TriggerEventType.COMPONENT_CLICKED);
+	DEFER_MESSAGE(7, 1, TriggerEventType.COMPONENT_CLICKED),
+	PROXY(8, 1) {
+		public EnumSet<TriggerEventType> getAllowedEvents() {
+			EnumSet<TriggerEventType> eventTypes = EnumSet.allOf(TriggerEventType.class);
+			eventTypes.remove(TriggerEventType.PROXY_EXECUTED);
+			return eventTypes;
+		}
+	};
 
 	public static final int MAX_ACTIONS = 6;
 
@@ -23,6 +30,12 @@ public enum TriggerActionType {
 		this.id = id;
 		this.maxActions = maxActions;
 		this.allowedEvents = allowedEvents.length == 0 ? EnumSet.allOf(TriggerEventType.class) : EnumSet.copyOf(Arrays.asList(allowedEvents));
+	}
+
+	private TriggerActionType(int id, int maxActions, EnumSet<TriggerEventType> allowedEvents) {
+		this.id = id;
+		this.maxActions = maxActions;
+		this.allowedEvents = allowedEvents;
 	}
 
 	public int getId() {
@@ -38,7 +51,7 @@ public enum TriggerActionType {
 	}
 
 	public boolean isAllowedEvent(TriggerEventType type) {
-		return this.allowedEvents.contains(type);
+		return this.getAllowedEvents().contains(type);
 	}
 
 	public static TriggerActionType fromId(int id) {

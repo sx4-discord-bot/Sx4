@@ -152,7 +152,7 @@ public class TriggerCommand extends Sx4Command {
 		}
 
 		if (!type.isAllowedEvent(eventType)) {
-			event.replyFailure("That trigger action type cannot be used for message matching triggers").queue();
+			event.replyFailure("The trigger action type `" + type + "` cannot be used in the trigger event type `" + eventType + "`").queue();
 			return;
 		}
 
@@ -665,9 +665,9 @@ public class TriggerCommand extends Sx4Command {
 				return;
 			}
 
-			List<Bson> update = List.of(Operators.set("actions", Operators.cond(Operators.or(Operators.gte(Operators.size("$actions"), TriggerActionType.MAX_ACTIONS), Operators.gte(Operators.size(Operators.filter("$actions", Operators.eq("$$this.type", type.getId()))), type.getMaxActions())), "$actions", Operators.concatArrays("$actions", List.of(action)))));
+			List<Bson> update = List.of(Operators.set("actions", Operators.cond(Operators.or(Operators.not(Operators.in("$type", type.getAllowedEvents())), Operators.gte(Operators.size("$actions"), TriggerActionType.MAX_ACTIONS), Operators.gte(Operators.size(Operators.filter("$actions", Operators.eq("$$this.type", type.getId()))), type.getMaxActions())), "$actions", Operators.concatArrays("$actions", List.of(action)))));
 
-			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("actions")).returnDocument(ReturnDocument.BEFORE);
+			FindOneAndUpdateOptions options = new FindOneAndUpdateOptions().projection(Projections.include("actions", "type")).returnDocument(ReturnDocument.BEFORE);
 			event.getMongo().findAndUpdateTrigger(Filters.and(Filters.eq("_id", id), Filters.eq("guildId", event.getGuild().getIdLong())), update, options).whenComplete((oldData, exception) -> {
 				if (ExceptionUtility.sendExceptionally(event, exception)) {
 					return;
@@ -675,6 +675,12 @@ public class TriggerCommand extends Sx4Command {
 
 				if (oldData == null) {
 					event.replyFailure("I could not find that trigger").queue();
+					return;
+				}
+
+				TriggerEventType eventType = TriggerEventType.fromId(oldData.getInteger("type"));
+				if (!type.isAllowedEvent(eventType)) {
+					event.replyFailure("The trigger action type `" + type + "` cannot be used in the trigger event type `" + eventType + "`").queue();
 					return;
 				}
 

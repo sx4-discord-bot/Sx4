@@ -68,6 +68,7 @@ public class TriggerUtility {
 				case REPLY_MESSAGE -> new ReplyMessageTriggerAction(manager, actionData, event);
 				case EDIT_MESSAGE -> new EditMessageTriggerAction(manager, actionData, event);
 				case DEFER_MESSAGE -> new DeferMessageTriggerAction(manager, actionData, event);
+				case PROXY -> new ProxyTriggerAction(manager, actionData, bot, message, event);
 			};
 
 			if (actionData.containsKey("order")) {
@@ -579,6 +580,13 @@ public class TriggerUtility {
 			if (combineEmbeds != null) {
 				action.append("combineEmbeds", combineEmbeds);
 			}
+		} else if (type == TriggerActionType.PROXY) {
+			Object triggerContent = data.get("trigger");
+			if (!(triggerContent instanceof String trigger)) {
+				throw new IllegalArgumentException("`data` field has to be a string");
+			}
+
+			action.append("trigger", trigger);
 		} else if (type != TriggerActionType.DEFER_MESSAGE) {
 			throw new IllegalArgumentException("That action type is not supported yet");
 		}
