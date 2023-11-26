@@ -35,12 +35,6 @@ public enum TriggerActionType {
 		this.allowedEvents = allowedEvents.length == 0 ? EnumSet.allOf(TriggerEventType.class) : EnumSet.copyOf(Arrays.asList(allowedEvents));
 	}
 
-	private TriggerActionType(int id, int maxActions, EnumSet<TriggerEventType> allowedEvents) {
-		this.id = id;
-		this.maxActions = maxActions;
-		this.allowedEvents = allowedEvents;
-	}
-
 	public int getId() {
 		return this.id;
 	}
