@@ -9,9 +9,10 @@ import java.util.function.Function;
 
 public enum FreeGameType {
 
-	EPIC_GAMES(0, "Epic Games", "https://cdn.discordapp.com/attachments/344091594972069888/950459635800887296/epic_games.png", EpicFreeGame::fromDatabase),
-	STEAM(1, "Steam", "https://cdn.discordapp.com/attachments/344091594972069888/950459636157395024/steam.png", SteamFreeGame::fromDatabase),
-	GOG(2, "GOG", "https://cdn.discordapp.com/attachments/344091594972069888/964575552671473664/gog.png", GOGFreeGame::fromDatabase);
+	EPIC_GAMES(0, "Epic Games", "https://file.sx4.dev/epic_games.png", EpicFreeGame::fromDatabase),
+	STEAM(1, "Steam", "https://file.sx4.dev/steam.png", SteamFreeGame::fromDatabase),
+	GOG(2, "GOG", "https://file.sx4.dev/gog.png", GOGFreeGame::fromDatabase),
+	UBISOFT(3, "Ubisoft", "https://file.sx4.dev/ubisoft.png", UbisoftFreeGame::fromDatabase);
 
 	public static final long ALL = FreeGameType.getRaw(FreeGameType.values());
 

@@ -14,6 +14,7 @@ import com.sx4.bot.http.HttpCallback;
 import com.sx4.bot.utility.FreeGameUtility;
 import com.sx4.bot.utility.FutureUtility;
 import com.sx4.bot.utility.MessageUtility;
+import com.sx4.bot.utility.StringUtility;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageEmbed;
@@ -490,6 +491,7 @@ public class FreeGameManager implements WebhookManager {
 
 			Element results = resultsDocument.getElementById("search_resultsRows");
 			if (results == null) {
+				future.complete(Collections.emptyList());
 				return;
 			}
 
@@ -530,6 +532,73 @@ public class FreeGameManager implements WebhookManager {
 		});
 
 		return future;
+	}
+
+	public CompletableFuture<List<UbisoftFreeGame>> retrieveFreeUbisoftGames() {
+		Request resultRequest = new Request.Builder()
+			.url("https://store.ubisoft.com/uk/home")
+			.build();
+
+		CompletableFuture<List<UbisoftFreeGame>> future = new CompletableFuture<>();
+		this.bot.getHttpClient().newCall(resultRequest).enqueue((HttpCallback) resultResponse -> {
+			org.jsoup.nodes.Document resultsDocument = Jsoup.parse(resultResponse.body().string());
+
+			Elements results = resultsDocument.getElementsByClass("c-focus-banner__content-inner");
+
+			List<CompletableFuture<UbisoftFreeGame>> futures = new ArrayList<>();
+			for (Element result : results) {
+				String text = result.getElementsByClass("c-focus-banner__text").text();
+				if (!text.contains("giveaway")) {
+					continue;
+				}
+
+				String url = result.getElementsByClass("button-wrapper c-focus-banner__cta-wrapper").first()
+					.children()
+					.stream()
+					.filter(element -> element.hasAttr("href"))
+					.map(element -> element.attr("href"))
+					.findFirst()
+					.orElse(null);
+
+				if (url == null) {
+					continue;
+				}
+
+				String id = StringUtility.getFileName(url);
+
+				Request gameRequest = new Request.Builder()
+					.url("https://store.ubisoft.com/uk/home" + url)
+					.build();
+
+				CompletableFuture<UbisoftFreeGame> gameFuture = new CompletableFuture<>();
+				this.bot.getHttpClient().newCall(gameRequest).enqueue((HttpCallback) gameResponse -> {
+					org.jsoup.nodes.Document document = Jsoup.parse(gameResponse.body().string());
+					Element content = document.getElementById("primary");
+
+					UbisoftFreeGame game = UbisoftFreeGame.fromData(id, content);
+					if (this.isAnnounced(game)) {
+						gameFuture.complete(null);
+						return;
+					}
+
+					gameFuture.complete(game);
+				});
+
+				futures.add(gameFuture);
+			}
+
+			FutureUtility.allOf(futures, Objects::nonNull).thenAccept(future::complete);
+		});
+
+		return future;
+	}
+
+	public void ensureUbisoftFreeGames() {
+		this.gogExecutor.scheduleAtFixedRate(() -> {
+			this.retrieveFreeUbisoftGames()
+				.thenCompose(this::sendFreeGameNotifications)
+				.whenComplete(MongoDatabase.exceptionally());
+		}, this.getInitialDelay(300), 1800, TimeUnit.SECONDS);
 	}
 
 	public void ensureGOGFreeGames() {
