@@ -5,10 +5,12 @@ import org.jsoup.nodes.Element;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.util.Locale;
 
 public class UbisoftFreeGame extends FreeGame<String> {
 
-	private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/uuuu [hh][h]:mma");
+	private static final DateTimeFormatterBuilder FORMATTER = new DateTimeFormatterBuilder().appendPattern("dd/MM/uuuu [hh][h]:mma");
 	private static final ZoneId ZONE_ID = ZoneId.of("Europe/London");
 
 	public UbisoftFreeGame(String id, String title, String description, String publisher, String image, int originalPrice, int discountPrice, OffsetDateTime start, OffsetDateTime end) {
@@ -39,7 +41,7 @@ public class UbisoftFreeGame extends FreeGame<String> {
 		String promotionEnding = offer.getElementsByClass("offer-info").first().text();
 		String time = promotionEnding.substring(promotionEnding.indexOf(" on ") + 4);
 
-		DateTimeFormatter formatter = UbisoftFreeGame.FORMATTER.withZone(UbisoftFreeGame.ZONE_ID);
+		DateTimeFormatter formatter = UbisoftFreeGame.FORMATTER.toFormatter(Locale.ROOT).withZone(UbisoftFreeGame.ZONE_ID);
 		OffsetDateTime end = ZonedDateTime.parse(time, formatter).toOffsetDateTime();
 
 		Element descriptionElement = content.getElementsByClass("c-pdp-general-info__group")
