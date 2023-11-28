@@ -40,9 +40,10 @@ public class UbisoftFreeGame extends FreeGame<String> {
 
 		String promotionEnding = offer.getElementsByClass("offer-info").first().text();
 		String time = promotionEnding.substring(promotionEnding.indexOf(" on ") + 4);
+		time = time.substring(0, time.length() - 2) + time.substring(time.length() - 2).toUpperCase(Locale.ROOT);
 
 		DateTimeFormatter formatter = UbisoftFreeGame.FORMATTER.toFormatter(Locale.ROOT).withZone(UbisoftFreeGame.ZONE_ID);
-		OffsetDateTime end = ZonedDateTime.parse(time, formatter).toOffsetDateTime();
+		OffsetDateTime end = ZonedDateTime.parse(time, formatter).withZoneSameInstant(ZoneOffset.UTC).toOffsetDateTime();
 
 		Element descriptionElement = content.getElementsByClass("c-pdp-general-info__group")
 			.stream()
