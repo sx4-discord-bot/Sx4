@@ -92,10 +92,10 @@ public class ServerStatsCommand extends Sx4Command {
 		}
 
 		ImageRequest request = new ImageRequest(event.getConfig().getImageWebserverUrl("line-graph"))
-			.addQuery("x_header", "Time")
-			.addQuery("y_header", "Messages Sent");
+			.addField("x_header", "Time")
+			.addField("y_header", "Messages Sent");
 
-		StringJoiner dataPoints = new StringJoiner("&");
+		List<Document> graphData = new ArrayList<>();
 		for (Document stats : data) {
 			Date time = stats.getDate("time");
 			Duration difference = Duration.between(time.toInstant(), currentHour);
@@ -114,15 +114,16 @@ public class ServerStatsCommand extends Sx4Command {
 			}
 
 			String timeReadable = ServerStatsCommand.GRAPH_FORMATTER.format(time.toInstant().atOffset(ZoneOffset.UTC));
-			request.addField("data." + timeReadable, messages);
+			graphData.add(new Document("value", messages).append("name", timeReadable));
 
 			lastUpdate = lastUpdate == null || lastUpdate.getTime() < time.getTime() ? time : lastUpdate;
 		}
 
+		request.addField("data", graphData);
+
 		EmbedBuilder embed = new EmbedBuilder()
 			.setAuthor("Server Stats", null, event.getGuild().getIconUrl())
 			.setFooter("Updated every hour")
-			.setImage(event.getConfig().getImageWebserverUrl("line-graph") + "?x_header=Time&y_header=Messages%20Sent&" + dataPoints)
 			.setTimestamp(lastUpdate.toInstant());
 
 		ServerStatsManager manager = event.getBot().getServerStatsManager();

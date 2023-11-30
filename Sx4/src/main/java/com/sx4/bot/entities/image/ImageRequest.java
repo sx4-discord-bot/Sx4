@@ -89,9 +89,9 @@ public class ImageRequest {
 		}
 
 		if (!this.fields.isEmpty()) {
-			builder.post(RequestBody.create(MediaType.parse("application/json"), this.fields.toJson()));
+			builder.post(RequestBody.create(this.fields.toJson(), MediaType.parse("application/json")));
 		} else if (this.image != null) {
-			builder.post(RequestBody.create(MediaType.parse("image/*"), this.image));
+			builder.post(RequestBody.create(this.image, MediaType.parse("image/*")));
 		}
 
 		return builder.build();

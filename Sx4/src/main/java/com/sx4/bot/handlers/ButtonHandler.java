@@ -707,13 +707,15 @@ public class ButtonHandler implements EventListener {
 		boolean joins = buttonId.getType() == ButtonType.SHOW_SERVER_STATS_JOIN_GRAPH.getId();
 
 		ImageRequest request = new ImageRequest(this.bot.getConfig().getImageWebserverUrl("line-graph"))
-			.addQuery("x_header", "Time")
-			.addQuery("y_header", joins ? "Members Joined" : "Messages Sent");
+			.addField("x_header", "Time")
+			.addField("y_header", joins ? "Members Joined" : "Messages Sent");
 
-		data.forEach(d -> {
+		List<Document> graphData = data.stream().map(d -> {
 			String time = ServerStatsCommand.GRAPH_FORMATTER.format(d.getDate("time").toInstant().atOffset(ZoneOffset.UTC));
-			request.addField("data." + time, d.getInteger(joins ? "joins" : "messages", 0));
-		});
+			return new Document("value", d.getInteger(joins ? "joins" : "messages", 0)).append("name", time);
+		}).collect(Collectors.toList());
+
+		request.addField("data", graphData);
 
 		EmbedBuilder builder = new EmbedBuilder(event.getMessage().getEmbeds().get(0));
 
