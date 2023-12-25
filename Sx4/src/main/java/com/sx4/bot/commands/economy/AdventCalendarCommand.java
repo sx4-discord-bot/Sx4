@@ -87,7 +87,7 @@ public class AdventCalendarCommand extends Sx4Command {
 					Operators.set("amount", Operators.add(Operators.ifNull("$amount", 0L), 1L))
 				);
 
-				event.getMongo().getItems().updateOne(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", item.getId())), update, new UpdateOptions().upsert(true));
+				event.getMongo().getItems().updateOne(session, Filters.and(Filters.eq("userId", event.getAuthor().getIdLong()), Filters.eq("item.id", present.getId())), update, new UpdateOptions().upsert(true));
 			}
 
 			List<Bson> update = List.of(
