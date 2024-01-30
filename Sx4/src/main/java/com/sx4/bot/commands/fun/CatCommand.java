@@ -8,6 +8,8 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import okhttp3.Request;
 import org.bson.Document;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class CatCommand extends Sx4Command {
 
@@ -22,15 +24,16 @@ public class CatCommand extends Sx4Command {
 
 	public void onCommand(Sx4CommandEvent event) {
 		Request request = new Request.Builder()
-			.url("http://aws.random.cat/meow")
+			.url("https://api.thecatapi.com/v1/images/search")
 			.build();
 
 		event.getHttpClient().newCall(request).enqueue((HttpCallback) response -> {
-			Document data = Document.parse(response.body().string());
+			JSONArray array = new JSONArray(response.body().string());
+			JSONObject data = array.getJSONObject(0);
 
 			EmbedBuilder embed = new EmbedBuilder()
 				.setDescription(":cat:")
-				.setImage(data.getString("file"));
+				.setImage(data.getString("url"));
 
 			event.reply(embed.build()).queue();
 		});
