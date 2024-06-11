@@ -139,6 +139,10 @@ public class MessageUtility {
 
 	private static OffsetDateTime timestampFromJson(Document json, boolean checkTimestamp, String field) {
 		Object timestampJson = json.get("timestamp");
+		if (timestampJson instanceof OffsetDateTime timestamp) {
+			return timestamp;
+		}
+
 		if (!(timestampJson instanceof String)) {
 			throw new IllegalArgumentException("`" + field + ".timestamp` value has to be a string");
 		}
