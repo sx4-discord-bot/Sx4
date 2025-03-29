@@ -130,8 +130,8 @@ public class LeaderboardCommand extends Sx4Command {
 			Aggregates.unionWith("users", userPipeline),
 			Aggregates.group("$_id", Accumulators.sum("total", "$total")),
 			Aggregates.match(Filters.and(Filters.ne("_id", event.getJDA().getSelfUser().getIdLong()), Filters.ne("total", 0))),
-			Aggregates.project(Projections.computed("total", Operators.toString("$total"))),
-			Aggregates.sort(Sorts.descending("total"))
+			Aggregates.sort(Sorts.descending("total")),
+			Aggregates.project(Projections.computed("total", Operators.toString("$total")))
 		);
 
 		event.getMongo().aggregateItems(pipeline).whenCompleteAsync((documents, exception) -> {
