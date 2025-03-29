@@ -139,8 +139,6 @@ public class LeaderboardCommand extends Sx4Command {
 				return;
 			}
 
-			System.out.println(documents.toString());
-
 			List<Map.Entry<User, BigInteger>> users = new ArrayList<>();
 			AtomicInteger userIndex = new AtomicInteger(-1);
 
@@ -185,7 +183,7 @@ public class LeaderboardCommand extends Sx4Command {
 				}).build();
 
 			paged.execute(event);
-		}).whenCompleteAsync((documents, exception) -> exception.printStackTrace());
+		});
 	}
 
 	@Command(value="winnings", description="View the leaderboard for the winnings of users")
