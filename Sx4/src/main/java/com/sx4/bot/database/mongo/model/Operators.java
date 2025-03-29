@@ -293,6 +293,10 @@ public class Operators {
 		return new Document("$toLong", expression);
 	}
 
+	public static Bson toDecimal(Object expression) {
+		return new Document("$toDecimal", expression);
+	}
+
 	public static Bson toString(Object expression) {
 		return new Document("$toString", expression);
 	}

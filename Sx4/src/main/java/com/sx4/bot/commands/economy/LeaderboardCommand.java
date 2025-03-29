@@ -25,6 +25,8 @@ import okhttp3.Request;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.Month;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -124,10 +126,11 @@ public class LeaderboardCommand extends Sx4Command {
 		);
 
 		List<Bson> pipeline = List.of(
-			Aggregates.project(Projections.fields(Projections.computed("_id", "$userId"), Projections.computed("total", Operators.cond(Operators.exists("$item.durability"), Operators.toLong(Operators.multiply(Operators.divide("$item.price", "$item.maxDurability"), "$item.durability")), Operators.multiply("$item.price", "$amount"))))),
+			Aggregates.project(Projections.fields(Projections.computed("_id", "$userId"), Projections.computed("total", Operators.cond(Operators.exists("$item.durability"), Operators.toDecimal(Operators.multiply(Operators.divide("$item.price", "$item.maxDurability"), "$item.durability")), Operators.multiply("$item.price", "$amount"))))),
 			Aggregates.unionWith("users", userPipeline),
 			Aggregates.group("$_id", Accumulators.sum("total", "$total")),
 			Aggregates.match(Filters.and(Filters.ne("_id", event.getJDA().getSelfUser().getIdLong()), Filters.ne("total", 0))),
+			Aggregates.project(Projections.computed("total", Operators.toString("$total"))),
 			Aggregates.sort(Sorts.descending("total"))
 		);
 
@@ -136,7 +139,9 @@ public class LeaderboardCommand extends Sx4Command {
 				return;
 			}
 
-			List<Map.Entry<User, Long>> users = new ArrayList<>();
+			System.out.println(documents.toString());
+
+			List<Map.Entry<User, BigInteger>> users = new ArrayList<>();
 			AtomicInteger userIndex = new AtomicInteger(-1);
 
 			int i = 0;
@@ -152,7 +157,7 @@ public class LeaderboardCommand extends Sx4Command {
 
 				i++;
 
-				users.add(Map.entry(user, data.getLong("total")));
+				users.add(Map.entry(user, new BigDecimal(data.getString("total")).toBigInteger()));
 
 				if (user.getIdLong() == event.getAuthor().getIdLong()) {
 					userIndex.set(i);
@@ -164,7 +169,7 @@ public class LeaderboardCommand extends Sx4Command {
 				return;
 			}
 
-			MessagePagedResult<Map.Entry<User, Long>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
+			MessagePagedResult<Map.Entry<User, BigInteger>> paged = new MessagePagedResult.Builder<>(event.getBot(), users)
 				.setPerPage(10)
 				.setSelect()
 				.setCustomFunction(page -> {
@@ -180,7 +185,7 @@ public class LeaderboardCommand extends Sx4Command {
 				}).build();
 
 			paged.execute(event);
-		});
+		}).whenCompleteAsync((documents, exception) -> exception.printStackTrace());
 	}
 
 	@Command(value="winnings", description="View the leaderboard for the winnings of users")
